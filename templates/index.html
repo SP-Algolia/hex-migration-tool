@@ -307,6 +307,78 @@
             margin-top: 0.25rem;
         }
         
+        .action-buttons-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .secondary-btn {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            box-shadow: 0 4px 15px rgba(69, 183, 209, 0.4) !important;
+        }
+        
+        .secondary-btn:hover {
+            box-shadow: 0 6px 20px rgba(69, 183, 209, 0.6) !important;
+        }
+        
+        .detailed-results {
+            display: none;
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+        }
+        
+        .file-details-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .table-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .table-row {
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            transition: background-color 0.2s ease;
+        }
+        
+        .table-row:hover {
+            background: #f8fafc;
+        }
+        
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        
+        .google-sheets-info {
+            background: linear-gradient(135deg, #34d399, #10b981);
+            color: white;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .google-sheets-info strong {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
         .file-input {
             display: none;
         }
@@ -401,7 +473,7 @@
             </div>
             
             <div class="processing-stats" id="processingStats">
-                <h4 style="margin-bottom: 1rem; color: #2c3e50;">📊 Processing Summary</h4>
+                <h4 style="margin-bottom: 1rem; color: #2c3e50;">📊 Migration Results</h4>
                 <div class="stats-grid">
                     <div class="stat-item">
                         <div class="stat-number" id="filesProcessed">0</div>
@@ -420,6 +492,25 @@
                         <div class="stat-label">Tables Remapped</div>
                     </div>
                 </div>
+                
+                <div class="results-actions" style="margin-top: 2rem; display: none;" id="resultsActions">
+                    <div class="action-buttons-grid">
+                        <button class="action-button download-btn" id="downloadBtn">
+                            📥 Download Migrated Files
+                        </button>
+                        <button class="action-button secondary-btn" id="exportBtn">
+                            📊 Export Report (CSV)
+                        </button>
+                        <button class="action-button secondary-btn" id="viewDetailsBtn">
+                            📋 View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detailed-results" id="detailedResults">
+                <h4 style="margin-bottom: 1rem; color: #2c3e50;">📄 File Processing Details</h4>
+                <div class="file-details-table" id="fileDetailsTable"></div>
             </div>
             
             <div class="notification" id="notification"></div>
@@ -436,6 +527,13 @@
         const fileInfo = document.getElementById('fileInfo');
         const notification = document.getElementById('notification');
         const processingStats = document.getElementById('processingStats');
+        const resultsActions = document.getElementById('resultsActions');
+        const detailedResults = document.getElementById('detailedResults');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const viewDetailsBtn = document.getElementById('viewDetailsBtn');
+        
+        let currentSessionId = null;
         
         // Drag and drop handlers
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -443,6 +541,11 @@
         uploadArea.addEventListener('dragleave', handleDragLeave);
         uploadArea.addEventListener('drop', handleDrop);
         fileInput.addEventListener('change', handleFileSelect);
+        
+        // Button handlers
+        downloadBtn.addEventListener('click', downloadFiles);
+        exportBtn.addEventListener('click', exportReport);
+        viewDetailsBtn.addEventListener('click', toggleDetails);
         
         function handleDragOver(e) {
             e.preventDefault();
@@ -476,6 +579,7 @@
             fileInfo.innerHTML = `${fileType} <strong>${file.name}</strong> (${size} MB)`;
             fileInfo.style.display = 'block';
             hideNotification();
+            resetResults();
         }
         
         function showNotification(message, type = 'info') {
@@ -487,7 +591,7 @@
             if (type === 'success') {
                 setTimeout(() => {
                     notification.style.display = 'none';
-                }, 5000);
+                }, 8000);
             }
         }
         
@@ -501,13 +605,11 @@
         
         function showProgress() {
             progressSection.style.display = 'block';
-            processingStats.style.display = 'block';
             updateProgress(0);
         }
         
         function hideProgress() {
             progressSection.style.display = 'none';
-            processingStats.style.display = 'none';
         }
         
         function updateStats(files = 0, cells = 0, functions = 0, tables = 0) {
@@ -523,6 +625,130 @@
             hideProgress();
         }
         
+        function resetResults() {
+            processingStats.style.display = 'none';
+            resultsActions.style.display = 'none';
+            detailedResults.style.display = 'none';
+            currentSessionId = null;
+        }
+        
+        function showResults(sessionId) {
+            currentSessionId = sessionId;
+            processingStats.style.display = 'block';
+            resultsActions.style.display = 'block';
+        }
+        
+        async function downloadFiles() {
+            if (!currentSessionId) return;
+            
+            try {
+                const response = await fetch(`/download/${currentSessionId}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'migrated_files';
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showNotification('✅ <strong>Files downloaded successfully!</strong><br>Your migrated files are now available locally.', 'success');
+                } else {
+                    showNotification('❌ <strong>Download failed:</strong><br>Please try again or contact support.', 'error');
+                }
+            } catch (err) {
+                showNotification('❌ <strong>Download error:</strong><br>Please check your connection and try again.', 'error');
+            }
+        }
+        
+        async function exportReport() {
+            if (!currentSessionId) return;
+            
+            try {
+                const response = await fetch(`/export/${currentSessionId}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const filename = `migration_report_${currentSessionId.substring(0, 8)}.csv`;
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showNotification(`✅ <strong>Report exported!</strong><br>
+                        📊 CSV file downloaded: ${filename}<br>
+                        💡 <strong>Import to Google Sheets:</strong> Open Google Sheets → File → Import → Upload → Select your CSV file`, 'success');
+                } else {
+                    showNotification('❌ Export failed. Please try again.', 'error');
+                }
+            } catch (err) {
+                showNotification('❌ Export error. Please check your connection.', 'error');
+            }
+        }
+        
+        async function toggleDetails() {
+            if (!currentSessionId) return;
+            
+            if (detailedResults.style.display === 'none' || !detailedResults.style.display) {
+                // Load and show details
+                try {
+                    const response = await fetch(`/results/${currentSessionId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        displayDetailedResults(data);
+                        detailedResults.style.display = 'block';
+                        viewDetailsBtn.innerHTML = '🔼 Hide Details';
+                    }
+                } catch (err) {
+                    showNotification('❌ Failed to load details.', 'error');
+                }
+            } else {
+                // Hide details
+                detailedResults.style.display = 'none';
+                viewDetailsBtn.innerHTML = '📋 View Details';
+            }
+        }
+        
+        function displayDetailedResults(data) {
+            const tableHtml = `
+                <div class="table-header">
+                    <div>Filename</div>
+                    <div>Type</div>
+                    <div>Cells Modified</div>
+                    <div>Size (MB)</div>
+                </div>
+                ${data.file_details.map(file => `
+                    <div class="table-row">
+                        <div>${file.filename}</div>
+                        <div>${file.type}</div>
+                        <div>${file.cells_rewritten}</div>
+                        <div>${file.size_mb}</div>
+                    </div>
+                `).join('')}
+            `;
+            
+            document.getElementById('fileDetailsTable').innerHTML = tableHtml;
+            
+            // Add Google Sheets info if not already present
+            if (!document.querySelector('.google-sheets-info')) {
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'google-sheets-info';
+                infoDiv.innerHTML = `
+                    <strong>📊 Want this data in Google Sheets?</strong>
+                    Click "Export Report (CSV)" above, then import the CSV file to Google Sheets for analysis and sharing!
+                `;
+                detailedResults.appendChild(infoDiv);
+            }
+        }
+        
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -532,6 +758,7 @@
             }
             
             hideNotification();
+            resetResults();
             showProgress();
             uploadBtn.disabled = true;
             uploadBtn.innerHTML = '⏳ Processing...';
@@ -559,32 +786,26 @@
                 updateProgress(100);
                 
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'converted_file';
+                    const result = await response.json();
                     
-                    // Download the file
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    // Update stats (simulate realistic numbers)
-                    const isZip = fileInput.files[0].name.endsWith('.zip');
-                    updateStats(
-                        isZip ? Math.floor(Math.random() * 10) + 5 : 1,
-                        Math.floor(Math.random() * 50) + 10,
-                        Math.floor(Math.random() * 15) + 3,
-                        Math.floor(Math.random() * 100) + 20
-                    );
-                    
-                    showNotification(`✅ <strong>Migration completed successfully!</strong><br>
-                        📥 File downloaded: ${filename}<br>
-                        🔄 SQL transformations applied automatically<br>
-                        ⚡ Connection IDs updated to Databricks`, 'success');
+                    if (result.success) {
+                        // Update stats with real data
+                        updateStats(
+                            result.summary.files_processed,
+                            result.summary.cells_rewritten,
+                            result.summary.functions_converted,
+                            result.summary.tables_remapped
+                        );
+                        
+                        showResults(result.session_id);
+                        
+                        showNotification(`✅ <strong>Migration completed successfully!</strong><br>
+                            � ${result.summary.files_processed} file(s) processed<br>
+                            🔄 ${result.summary.cells_rewritten} SQL cells transformed<br>
+                            ⚡ Ready for download - results saved until you download`, 'success');
+                    } else {
+                        showNotification('❌ Migration failed. Please try again.', 'error');
+                    }
                 } else {
                     const error = await response.json();
                     showNotification(`❌ <strong>Migration failed:</strong><br>${error.error}`, 'error');
