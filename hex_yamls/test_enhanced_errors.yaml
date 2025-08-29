@@ -1,0 +1,36 @@
+schemaVersion: 3
+meta:
+  title: Enhanced Error Detection Test
+  description: Test file for comprehensive Databricks migration error detection
+  projectId: test-enhanced-errors
+cells:
+  - cellType: INPUT
+    cellId: test-boolean-input
+    config:
+      inputType: BOOLEAN
+      name: enable_feature
+      defaultValue: true
+  - cellType: SQL
+    cellId: test-comprehensive-errors
+    config:
+      dataConnectionId: 63ebcea0-017f-4bcf-b58a-a2340a75845f
+      source: |
+        -- Test comprehensive error detection
+        SELECT 
+          'Enhanced Error Test' as report_name,
+          (SELECT COUNT(DISTINCT account_id) FROM data_engineering_staging.product.daily_adoptions_personalization WHERE available = true) AS accounts_available,
+          (SELECT COUNT(DISTINCT account_id) FROM prod_common.account WHERE active = true) AS active_accounts,
+          SUPER_FIELD::VARCHAR(MAX) as converted_field,  -- SUPER and VARCHAR(MAX) issues
+          MOD(account_id, 10) as account_mod,  -- MOD function
+          JSON_EXTRACT_PATH_TEXT(metadata, 'status', true) as status,  -- JSON function with extra param
+          QUALIFY ROW_NUMBER() OVER (ORDER BY created_date) = 1  -- QUALIFY issue
+        FROM prod.raw_salesforce.accounts a
+        LEFT JOIN prod.prod_mart_sales.monthly_revenue mr 
+          ON a.id = mr.account_id
+        WHERE EXISTS (SELECT * FROM analytics.dimensional.dim_application app 
+                      WHERE app.account_id = a.account_id)  -- EXISTS with SELECT *
+          AND a.created_date IN (SELECT created_date FROM prod_common.account ORDER BY created_date)  -- IN with ORDER BY
+sharedAssets:
+  dataConnections:
+    - dataConnectionId: 63ebcea0-017f-4bcf-b58a-a2340a75845f
+defaultDataConnectionId: 63ebcea0-017f-4bcf-b58a-a2340a75845f

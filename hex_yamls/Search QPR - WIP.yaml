@@ -1,0 +1,5035 @@
+schemaVersion: 3
+meta:
+  sourceVersionId: 0198cd21-ae83-7000-9afa-06e566caf531 # DO NOT CHANGE - Hex uses this to match up project versions when reimporting the file
+  description: null
+  projectId: e41689fb-c3af-415d-935e-f73ff469c135 # DO NOT CHANGE - Unique ID of the project from which this file was generated
+  title: Search QPR - WIP
+  timezone: null
+  appTheme: SYS_PREF
+  codeLanguage: PYTHON
+  status: null
+  categories: []
+  castDecimalsDefault: true
+  logicQueryCacheTimeout: null
+  publishedQueryCacheTimeout: null
+  hexType: PROJECT
+  allowExecutionReordering: true
+  prerunApp: false
+  cachePublishedAppState: true
+  refreshStalePublishedApp: false
+  autoRerunApp: true
+projectAssets:
+  dataConnections: []
+  envVars: []
+  secrets: []
+sharedAssets:
+  secrets: []
+  vcsPackages: []
+  dataConnections:
+    - dataConnectionId: 63ebcea0-017f-4bcf-b58a-a2340a75845f # Redshift (with external tables) (redshift)
+    - dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238 # Redshift (with raw tables) (redshift)
+  externalFileIntegrations: []
+cells:
+  - cellType: INPUT
+    cellId: 83f8e035-ab6f-4978-a673-0517b6738ba4 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Start date
+    config:
+      inputType: DATE
+      name: start_date
+      outputType: DATETIME
+      options:
+        enableTime: false
+        showRelativeDates: false
+        useDateRange: false
+      defaultValue:
+        dateString: 2024-02-01
+  - cellType: INPUT
+    cellId: b672a464-fe0f-4bb5-93a0-c6cc438cfd0b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: End date
+    config:
+      inputType: DATE
+      name: end_date
+      outputType: DATETIME
+      options:
+        enableTime: false
+        showRelativeDates: false
+        useDateRange: false
+      defaultValue:
+        dateString: 2024-07-31
+  - cellType: MARKDOWN
+    cellId: 09e1d81e-b7d4-450f-bec6-5a1eba269991 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: "#### Search"
+  - cellType: SQL
+    cellId: cd54b269-06d0-4d33-a8c0-6a6e49cef7f5 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Dataframe 14
+    config:
+      source: |-
+        WITH WeeklyUsage AS (
+            SELECT
+                DATE_TRUNC('week', date) AS week_start,
+                EXTRACT(YEAR FROM date) AS year,
+                SUM(total_search_requests) AS weekly_usage
+            FROM 
+                prod_usages.daily_per_application
+            WHERE EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+            GROUP BY 1, 2
+        ),
+        MonthlyUsage AS (
+            SELECT
+                DATE_TRUNC('month', date) AS month_start,
+                EXTRACT(YEAR FROM date) AS year,
+                SUM(total_search_requests) AS monthly_usage
+            FROM 
+                prod_usages.daily_per_application
+            WHERE EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+            GROUP BY 1, 2
+        ),
+        QuarterlyUsage AS (
+            SELECT
+                DATE_TRUNC('quarter', date) AS quarter_start,
+                EXTRACT(YEAR FROM date) AS year,
+                SUM(total_search_requests) AS quarterly_usage
+            FROM 
+                prod_usages.daily_per_application
+            WHERE EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+            GROUP BY 1, 2
+        ),
+        YearlyUsage AS (
+            SELECT
+                DATE_TRUNC('year', date) AS year_start,
+                EXTRACT(YEAR FROM date) AS year,
+                SUM(total_search_requests) AS yearly_usage
+            FROM 
+                prod_usages.daily_per_application
+            WHERE EXTRACT(YEAR FROM date) <= EXTRACT(YEAR FROM CURRENT_DATE)
+            GROUP BY 1, 2
+        ),
+        LatestDates AS (
+            SELECT
+                MAX(date) AS latest_date
+            FROM 
+                prod_usages.daily_per_application
+            WHERE EXTRACT(YEAR FROM date) <= EXTRACT(YEAR FROM CURRENT_DATE)
+        ),
+        Percentages AS (
+            SELECT
+                (SELECT weekly_usage FROM WeeklyUsage WHERE year = EXTRACT(YEAR FROM ld.latest_date) AND week_start = DATE_TRUNC('week', ld.latest_date)) AS last_week_usage,
+                (SELECT weekly_usage FROM WeeklyUsage WHERE week_start = DATE_TRUNC('week', DATEADD(week, -1, ld.latest_date))) AS prev_week_usage,
+                (SELECT monthly_usage FROM MonthlyUsage WHERE year = EXTRACT(YEAR FROM ld.latest_date) AND month_start = DATE_TRUNC('month', ld.latest_date)) AS last_month_usage,
+                (SELECT monthly_usage FROM MonthlyUsage WHERE month_start = ADD_MONTHS(DATE_TRUNC('month', ld.latest_date), -1)) AS prev_to_last_month_usage,
+                (SELECT quarterly_usage FROM QuarterlyUsage WHERE year = EXTRACT(YEAR FROM ld.latest_date) AND quarter_start = DATE_TRUNC('quarter', ld.latest_date)) AS last_quarter_usage,
+                (SELECT quarterly_usage FROM QuarterlyUsage WHERE quarter_start = ADD_MONTHS(DATE_TRUNC('quarter', ld.latest_date), -3)) AS prev_to_last_quarter_usage,
+                (SELECT yearly_usage FROM YearlyUsage WHERE year = EXTRACT(YEAR FROM ld.latest_date)) AS current_year_usage,
+                (SELECT yearly_usage FROM YearlyUsage WHERE year = EXTRACT(YEAR FROM ld.latest_date) - 1) AS prev_year_usage
+            FROM LatestDates ld
+        )
+        SELECT
+            last_week_usage,
+            prev_week_usage,
+            last_week_usage - prev_week_usage as week_difference,
+            (last_week_usage - prev_week_usage) / NULLIF(prev_week_usage, 0) * 100 AS perc_WoW,
+            last_month_usage,
+            prev_to_last_month_usage,
+            last_month_usage - prev_to_last_month_usage as month_difference,
+            (last_month_usage - prev_to_last_month_usage) / NULLIF(prev_to_last_month_usage, 0) * 100 AS perc_MoM,
+            last_quarter_usage,
+            prev_to_last_quarter_usage,
+            last_quarter_usage - prev_to_last_quarter_usage as quarter_difference,
+            (last_quarter_usage - prev_to_last_quarter_usage) / NULLIF(prev_to_last_quarter_usage, 0) * 100 AS perc_QoQ,
+            current_year_usage,
+            prev_year_usage,
+            (current_year_usage - prev_year_usage) / NULLIF(prev_year_usage, 0) * 100 AS perc_YoY
+        FROM Percentages;
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_14
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: current_year_usage
+            renameTo: null
+            size: 216
+            wrapText: null
+            displayFormat: null
+          - originalName: last_month_usage
+            renameTo: null
+            size: 155
+            wrapText: null
+            displayFormat: null
+          - originalName: last_quarter_usage
+            renameTo: null
+            size: 158
+            wrapText: null
+            displayFormat: null
+          - originalName: last_week_usage
+            renameTo: null
+            size: 148
+            wrapText: null
+            displayFormat: null
+          - originalName: month_difference
+            renameTo: null
+            size: 150
+            wrapText: null
+            displayFormat: null
+          - originalName: perc_mom
+            renameTo: null
+            size: 113
+            wrapText: null
+            displayFormat: null
+          - originalName: perc_qoq
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: perc_wow
+            renameTo: null
+            size: 110
+            wrapText: null
+            displayFormat: null
+          - originalName: perc_yoy
+            renameTo: null
+            size: 104
+            wrapText: null
+            displayFormat: null
+          - originalName: perc_yoy_1
+            renameTo: null
+            size: 117
+            wrapText: null
+            displayFormat: null
+          - originalName: prev_to_last_month_usage
+            renameTo: null
+            size: 201
+            wrapText: null
+            displayFormat: null
+          - originalName: prev_to_last_quarter_usage
+            renameTo: null
+            size: 312
+            wrapText: null
+            displayFormat: null
+          - originalName: prev_week_usage
+            renameTo: null
+            size: 151
+            wrapText: null
+            displayFormat: null
+          - originalName: prev_year_usage
+            renameTo: null
+            size: 180
+            wrapText: null
+            displayFormat: null
+          - originalName: quarter_difference
+            renameTo: null
+            size: 216
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 38
+            wrapText: null
+            displayFormat: null
+          - originalName: week_difference
+            renameTo: null
+            size: 144
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: METRIC
+    cellId: b3e1f060-0bf1-4e1d-899d-c88e089c1a2b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Requests last week
+      valueVariableName: dataframe_14
+      showComparison: true
+      comparisonType: PERCENTAGE
+      comparisonVariableName: dataframe_14
+      comparisonFormat: POSITIVE_NEGATIVE
+      comparisonLabel: from prev. week
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: last_week_usage
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: prev_week_usage
+      comparisonRowIndex: 0
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 2f30fa8c-c23b-4dff-a6ec-45c61c0183aa # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Requests last month
+      valueVariableName: dataframe_14
+      showComparison: true
+      comparisonType: PERCENTAGE
+      comparisonVariableName: dataframe_14
+      comparisonFormat: POSITIVE_NEGATIVE
+      comparisonLabel: from prev. month
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: last_month_usage
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: prev_to_last_month_usage
+      comparisonRowIndex: 0
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 65d01023-6ebf-4e1d-9418-93c60c58664a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Requests last quarter
+      valueVariableName: dataframe_14
+      showComparison: true
+      comparisonType: PERCENTAGE
+      comparisonVariableName: dataframe_14
+      comparisonFormat: POSITIVE_NEGATIVE
+      comparisonLabel: from prev. quarter
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: last_quarter_usage
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: prev_to_last_quarter_usage
+      comparisonRowIndex: 0
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 4c5d4dc7-9b18-4375-9730-674ec1bf7339 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Requests last year
+      valueVariableName: dataframe_14
+      showComparison: true
+      comparisonType: PERCENTAGE
+      comparisonVariableName: dataframe_14
+      comparisonFormat: POSITIVE_NEGATIVE
+      comparisonLabel: from prev. year
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: current_year_usage
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: prev_year_usage
+      comparisonRowIndex: 0
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: SQL
+    cellId: b0f9ef7c-f5cf-4aca-8b86-bbf834e7da16 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Total search records
+    config:
+      source: |
+        select sum(records) as records from (
+            select application_id, max(records) as records
+        from prod_usages.daily_per_application
+        where date BETWEEN {{start_date}} AND {{end_date}}
+        group by application_id)
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: total_search_records
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: records
+            renameTo: null
+            size: 121
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: af882a94-7537-4eeb-9c22-4e22f446721b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Total search requests
+    config:
+      source: |
+        select sum(total_search_requests) as total_search_requests
+        from prod_usages.daily_per_application
+        where date BETWEEN {{start_date}} AND {{end_date}}
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: total_search_requests
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: records
+            renameTo: null
+            size: 121
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+          - originalName: total_search_requests
+            renameTo: null
+            size: 176
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: TEXT
+    cellId: c327e582-e847-4e9c-bc64-2c0d8426658c # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      richText:
+        - type: paragraph
+          children:
+            - text: Identifying Paying customers
+  - cellType: SQL
+    cellId: b6819c80-14f6-49bf-a8e8-707be556b8ec # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Slg
+    config:
+      source: |-
+        -- account/ at billing-application level that have contracts associated
+           
+            select app.account_id , max(li.arr) as line_item_arr,
+            max(start_date) as start_date, max(end_date) as end_date, effective_end_date, a.arr, a.account_name, csm_owner_name, opportunity_name
+        from prod_dimensional.dim_application app
+        left join prod_dimensional.dim_account a 
+        on a.account_id = app.account_id
+        left join prod_dimensional.dim_contract con
+        on app.account_id = con.account_id and con.status = 'Activated'
+        LEFT JOIN prod_mart_sales.rpt_sales_line_item li 
+         on con.opportunity_id = li.opportunity_id and product_group = 'Search' and ( effective_end_date >= {{start_date}} or effective_end_date IS NULL)
+        where end_date >= {{start_date}}
+        and deleted_at IS NULL
+        group by app.account_id ,a.arr, a.account_name, csm_owner_name ,effective_end_date, opportunity_name
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: slg
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: start_date
+        defaultSortIndexColumn: null
+        defaultSortDirection: DESC
+        conditionalFormatting: null
+        calcs: null
+        filters: []
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 161
+            wrapText: null
+            displayFormat: null
+          - originalName: account_name
+            renameTo: null
+            size: 310
+            wrapText: null
+            displayFormat: null
+          - originalName: arr
+            renameTo: null
+            size: 85
+            wrapText: null
+            displayFormat: null
+          - originalName: billing_public_application_id
+            renameTo: null
+            size: 211
+            wrapText: null
+            displayFormat: null
+          - originalName: csm_owner_name
+            renameTo: null
+            size: 153
+            wrapText: null
+            displayFormat: null
+          - originalName: effective_end_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: end_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: line_item_arr
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_name
+            renameTo: null
+            size: 192
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+          - originalName: start_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 565cf6cb-ac22-4659-a304-d8249cc0452b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |-
+        select * from prod_mart_sales.rpt_sales_line_item where account_name like 'Walgreens%' and
+        product_group = 'Search' 
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_10
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: effective_end_date
+        defaultSortIndexColumn: null
+        defaultSortDirection: DESC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: created_by_id
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: last_modified_by_id
+            renameTo: null
+            size: 228
+            wrapText: null
+            displayFormat: null
+          - originalName: line_item_id
+            renameTo: null
+            size: 167
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_id
+            renameTo: null
+            size: 162
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_line_item_id
+            renameTo: null
+            size: 190
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_entry_id
+            renameTo: null
+            size: 216
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_entry_name
+            renameTo: null
+            size: 240
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_id
+            renameTo: null
+            size: 158
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_name
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: primary_quote_flag
+            renameTo: null
+            size: 216
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_id
+            renameTo: null
+            size: 161
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_line_id
+            renameTo: null
+            size: 167
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_line_number
+            renameTo: null
+            size: 160
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_number
+            renameTo: null
+            size: 134
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: bc50946d-2ddf-43fa-82e7-c046eaafcf11 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Slg count
+    config:
+      source: |-
+        select count(distinct account_id)as slg_customers, sum(arr) as total_arr , sum(line_item_arr) as search_arr from 
+        (select account_id, arr ,line_item_arr as line_item_arr from slg
+        group by 1,2,3)
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: slg_count
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+          - originalName: search_arr
+            renameTo: null
+            size: 150
+            wrapText: null
+            displayFormat:
+              format: CURRENCY
+              currency: USD
+              columnType: NUMBER
+              numDecimalDigits: 2
+              abbreviateLargeNumbers: false
+          - originalName: slg_customers
+            renameTo: null
+            size: 134
+            wrapText: null
+            displayFormat: null
+          - originalName: total_arr
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat:
+              format: CURRENCY
+              currency: USD
+              columnType: NUMBER
+              numDecimalDigits: 2
+              abbreviateLargeNumbers: false
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: d1322e3d-f6bb-4947-8ba7-fa4f401da94b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Plg
+    config:
+      source: |2-
+                        -- account/ at billing-application level that have paygo usage associated
+            select r.application_id , a.billing_application_id, a.billing_public_application_id, account_id, cum_revenue, invoice_revenue
+        from prod_analytics.usage_based_revenue r
+        left join prod_dimensional.dim_application a on a.public_application_id = r.application_id
+        where billing_end_date BETWEEN {{start_date}} AND {{end_date}}
+        and invoice_revenue > 0
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: plg
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: cum_revenue
+        defaultSortIndexColumn: null
+        defaultSortDirection: DESC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 162
+            wrapText: null
+            displayFormat: null
+          - originalName: application_id
+            renameTo: null
+            size: 131
+            wrapText: null
+            displayFormat: null
+          - originalName: billing_application_id
+            renameTo: null
+            size: 171
+            wrapText: null
+            displayFormat: null
+          - originalName: billing_public_application_id
+            renameTo: null
+            size: 211
+            wrapText: null
+            displayFormat: null
+          - originalName: cum_revenue
+            renameTo: null
+            size: 128
+            wrapText: null
+            displayFormat: null
+          - originalName: invoice_revenue
+            renameTo: null
+            size: 142
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 97daed15-2d0f-4a24-8b97-5473ac772cc7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |-
+        select count(distinct billing_application_id) from plg
+        where account_id is null
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_5
+      useRichDisplay: false
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig: null
+  - cellType: SQL
+    cellId: 415ba930-66c5-4f23-9423-8423d975e756 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Plg count
+    config:
+      source: |-
+        select count(distinct CASE when account_id IS NULL then application_id else account_id end ) as plg_customers, 
+        sum(invoice_revenue) as plg_revenue  from plg
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: plg_count
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: plg_customers
+            renameTo: null
+            size: 135
+            wrapText: null
+            displayFormat: null
+          - originalName: plg_revenue
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat:
+              format: CURRENCY
+              currency: USD
+              columnType: NUMBER
+              numDecimalDigits: 2
+              abbreviateLargeNumbers: false
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 55fbc6bd-a244-47b7-b476-36d1f197ec41 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Duplicates slg plg
+    config:
+      source: |-
+        select distinct slg.account_id as slg_accounts , plg.account_id as plg_accounts
+        from slg
+        full outer join plg 
+        on slg.account_id = plg.account_id
+        where slg.account_id = plg.account_id
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: duplicates_slg_plg
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: account_id_1
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: plg_accounts
+            renameTo: null
+            size: 163
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 46
+            wrapText: null
+            displayFormat: null
+          - originalName: slg_accounts
+            renameTo: null
+            size: 163
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: cde7e876-3ea4-4907-9b2e-238d6226f7a7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Duplicates count
+    config:
+      source: select count(distinct slg_accounts) as duplicates from duplicates_slg_plg
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: duplicates_count
+      useRichDisplay: false
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig: null
+  - cellType: SQL
+    cellId: 9cfe6b41-3036-421a-9578-b68e6684ade3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Paying customers
+    config:
+      source: |-
+        select distinct account_id , 'yes' as paid , type from 
+            (
+        select account_id, 'plg' as type from plg 
+        union all 
+        select account_id , 'slg' as type from slg) 
+      dataFrameCell: true
+      dataConnectionId: null
+      resultVariableName: paying_customers
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 167
+            wrapText: null
+            displayFormat: null
+          - originalName: paid
+            renameTo: null
+            size: 78
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+          - originalName: type
+            renameTo: null
+            size: 79
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: e67c004f-e127-43dd-8b16-7711ffcad967 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Total customers
+    config:
+      source: |-
+        select count(distinct account_id) as total_accounts from 
+        (
+        select account_id, 'plg' as type from plg 
+        union all 
+        select account_id , 'slg' as type from slg) 
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: total_customers
+      useRichDisplay: false
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig: null
+  - cellType: TEXT
+    cellId: 583df9d4-c850-4cef-b51d-634186a8e0c3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      richText:
+        - type: paragraph
+          children:
+            - text: Identifying Free Customers
+  - cellType: SQL
+    cellId: b2155b06-e13f-4856-beff-b1521839257a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Free vs paid
+    config:
+      source: |2-
+        
+            SELECT 
+                plan_id,
+                plan_name,
+                plan_label,
+                CASE
+                    WHEN price_cents = 0 THEN 'Free'
+                    ELSE 'Paid'
+                END AS plan_type,
+                MAX(price) AS max_price_value
+            FROM prod_dimensional.dim_plan
+            GROUP BY 1, 2, 3, 4
+            ORDER BY 1
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: free_vs_paid
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: max_price_value
+            renameTo: null
+            size: 146
+            wrapText: null
+            displayFormat: null
+          - originalName: plan_id
+            renameTo: null
+            size: 95
+            wrapText: null
+            displayFormat: null
+          - originalName: plan_label
+            renameTo: null
+            size: 111
+            wrapText: null
+            displayFormat: null
+          - originalName: plan_name
+            renameTo: null
+            size: 115
+            wrapText: null
+            displayFormat: null
+          - originalName: plan_type
+            renameTo: null
+            size: 108
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 46
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 683fd1a9-ca55-4805-b6de-942f964008ef # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Free customers
+    config:
+      source: |
+        with paid as (
+            select
+                account_id as paid_accounts,
+                TRUE as is_paid_account
+            from
+                (
+                    select account_id from plg
+                    union all
+                    select account_id from slg
+                )
+        )
+
+        select distinct account_id from
+            (
+                select distinct
+                    account_id,
+                    coalesce (is_paid_account is TRUE, false) as is_paid_account
+                from
+
+                    (select
+                        account_id,
+                        count(
+                            distinct case
+                                when plan_type = 'Free' then a.public_application_id
+                            end
+                        ) as Free,
+                        count(
+                            distinct case
+                                when plan_type = 'Paid' then a.public_application_id
+                            end
+                        ) as "Paid"
+                    from prod_dimensional.dim_application as a
+                    left join
+                        prod_dimensional.dim_plan as p
+                        on p.public_application_id = a.public_application_id
+                    left join free_vs_paid as f on f.plan_id = p.plan_id
+                    where
+                        deleted_at is null
+                        and a.created_at <= {{end_date}}
+                    group by account_id) as data
+                left join paid on paid.paid_accounts = data.account_id
+                where paid = 0 and Free > 0
+            )
+        where is_paid_account is FALSE
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: free_customers
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: account_id
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: []
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 162
+            wrapText: null
+            displayFormat: null
+          - originalName: count
+            renameTo: null
+            size: 85
+            wrapText: null
+            displayFormat: null
+          - originalName: count_free_accounts
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: free
+            renameTo: null
+            size: 76
+            wrapText: null
+            displayFormat: null
+          - originalName: paid
+            renameTo: null
+            size: 78
+            wrapText: null
+            displayFormat: null
+          - originalName: plan_type
+            renameTo: null
+            size: 108
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 09eaa0be-2a84-4c31-bcc4-7f008613bb47 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Total free customers
+    config:
+      source: "select count(distinct account_id) as count_free_accounts from
+
+        free_customers\ 
+
+        \    "
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: total_free_customers
+      useRichDisplay: false
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig: null
+  - cellType: MARKDOWN
+    cellId: 7be0193e-2e7d-46ca-b873-352051d889c7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |+
+        #### Neural Search
+
+  - cellType: SQL
+    cellId: 2dd3918c-1600-4250-b2de-159cade8555f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Ns customers
+    config:
+      source: |-
+        select distinct 
+        li.account_id,
+        a.account_name,
+            website,
+            industry_category,
+            industry_vertical,
+            record_type_description,
+            naics_category,
+            algolia_industry_classification,
+            billing_country,
+            region,
+            a.arr,
+            csm_owner_name,
+            TRUE as is_ns,
+            max(close_date) as close_date_latest,
+            sum(li.arr) as line_item_arr
+             from prod_dimensional.fact_sales_line_item li
+        Left join prod_dimensional.fact_opportunity opp on opp.opportunity_id = li.opportunity_id
+        left join prod_dimensional.dim_account a on a.account_id = li.account_id
+        where product_group = 'NeuralSearch'
+        and is_won IS TRUE
+        and is_closed IS TRUE
+        and close_date <= {{end_date}}
+        group by 1,2,3,4,5,6,7,8,9,10,11,12,13
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: NS_customers
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: account_name
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 166
+            wrapText: null
+            displayFormat: null
+          - originalName: account_name
+            renameTo: null
+            size: 218
+            wrapText: null
+            displayFormat: null
+          - originalName: algolia_industry_classification
+            renameTo: null
+            size: 400
+            wrapText: null
+            displayFormat: null
+          - originalName: arr
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: billing_country
+            renameTo: null
+            size: 180
+            wrapText: null
+            displayFormat: null
+          - originalName: close_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: close_date_latest
+            renameTo: null
+            size: 204
+            wrapText: null
+            displayFormat: null
+          - originalName: created_datetime
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: csm_owner_name
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: industry_category
+            renameTo: null
+            size: 153
+            wrapText: null
+            displayFormat: null
+          - originalName: industry_vertical
+            renameTo: null
+            size: 160
+            wrapText: null
+            displayFormat: null
+          - originalName: initial_opportunity_renewal_date
+            renameTo: null
+            size: 233
+            wrapText: null
+            displayFormat: null
+          - originalName: is_ns
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: line_item_id
+            renameTo: null
+            size: 165
+            wrapText: null
+            displayFormat: null
+          - originalName: naics_category
+            renameTo: null
+            size: 135
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_id
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_line_item_id
+            renameTo: null
+            size: 190
+            wrapText: null
+            displayFormat: null
+          - originalName: opportunity_name
+            renameTo: null
+            size: 400
+            wrapText: null
+            displayFormat: null
+          - originalName: pipeline_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_id
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat: null
+          - originalName: pricebook_name
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: product_group
+            renameTo: null
+            size: 135
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_id
+            renameTo: null
+            size: 102
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_line_id
+            renameTo: null
+            size: 128
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_line_number
+            renameTo: null
+            size: 160
+            wrapText: null
+            displayFormat: null
+          - originalName: quote_number
+            renameTo: null
+            size: 134
+            wrapText: null
+            displayFormat: null
+          - originalName: record_type_description
+            renameTo: null
+            size: 186
+            wrapText: null
+            displayFormat: null
+          - originalName: region
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+          - originalName: website
+            renameTo: null
+            size: 253
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 8a2abdb9-20e1-48e4-9948-19f7ded6a3ce # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Pov customers
+    config:
+      source: |-
+        select  sf_accounts.pov_sent_for_signature__c as pov_sent_for_signature,
+            sf_accounts.pov_agreement_signed__c as pov_signed,
+            sf_accounts.pov_live__c as pov_live ,
+            sf_accounts.*
+        from raw_salesforce.account sf_accounts
+        where pov_signed is not null 
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: pov_customers
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: _sdc_batched_at
+            renameTo: null
+            size: 241
+            wrapText: null
+            displayFormat: null
+          - originalName: _sdc_extracted_at
+            renameTo: null
+            size: 241
+            wrapText: null
+            displayFormat: null
+          - originalName: _sdc_received_at
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: _sdc_sequence
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: _sdc_table_version
+            renameTo: null
+            size: 158
+            wrapText: null
+            displayFormat: null
+          - originalName: billingcity
+            renameTo: null
+            size: 132
+            wrapText: null
+            displayFormat: null
+          - originalName: billingcountry
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: billingpostalcode
+            renameTo: null
+            size: 204
+            wrapText: null
+            displayFormat: null
+          - originalName: billingstate
+            renameTo: null
+            size: 144
+            wrapText: null
+            displayFormat: null
+          - originalName: billingstatecode
+            renameTo: null
+            size: 192
+            wrapText: null
+            displayFormat: null
+          - originalName: billingstreet
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: id
+            renameTo: null
+            size: 164
+            wrapText: null
+            displayFormat: null
+          - originalName: isdeleted
+            renameTo: null
+            size: 105
+            wrapText: null
+            displayFormat: null
+          - originalName: masterrecordid
+            renameTo: null
+            size: 137
+            wrapText: null
+            displayFormat: null
+          - originalName: name
+            renameTo: null
+            size: 244
+            wrapText: null
+            displayFormat: null
+          - originalName: parentid
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: pov_live
+            renameTo: null
+            size: 99
+            wrapText: null
+            displayFormat: null
+          - originalName: pov_sent_for_signature
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: pov_signed
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: recordtypeid
+            renameTo: null
+            size: 161
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+          - originalName: type
+            renameTo: null
+            size: 132
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 96d978a0-718e-4dfa-a09e-12487c48f87f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Pov count
+    config:
+      source: select count(distinct id) as pov_customers_signed from pov_customers
+      dataFrameCell: true
+      dataConnectionId: null
+      resultVariableName: pov_count
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: pov_customers_signed
+            renameTo: null
+            size: 178
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: bde6d8f6-6384-4739-a836-6bb93c020c21 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: validation accross plans
+    config:
+      source: |-
+        select distinct a.account_id, account_name
+        from prod_dimensional.dim_application a 
+        left join prod_dimensional.dim_plan p
+        on p.public_application_id = a.public_application_id
+        left join prod_dimensional.dim_account aa 
+        on a.account_id = aa.account_id
+        where plan_name in ('v8.5-slg-elevate-ecomm','v8.5-slg-elevate')
+        and a.created_at <= {{end_date}}
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_9
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: account_name
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 167
+            wrapText: null
+            displayFormat: null
+          - originalName: account_name
+            renameTo: null
+            size: 174
+            wrapText: null
+            displayFormat: null
+          - originalName: created_at
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 77f9debe-477b-408a-be70-06b2775bb295 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Data
+    config:
+      source: select count(distinct account_id) as total_accounts, sum(line_item_arr) as NS_arr from NS_customers
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: data
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: ns_arr
+            renameTo: null
+            size: 157
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+          - originalName: total_accounts
+            renameTo: null
+            size: 135
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: TEXT
+    cellId: 72395c73-a75d-4656-9698-d22a16226ac3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      richText:
+        - type: paragraph
+          children:
+            - text: Keyword Search - Free+Paid - NS customers
+  - cellType: SQL
+    cellId: ab85cb85-1eed-44ef-b189-67fd6e7c3a84 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Keyword search customers
+    config:
+      source: |-
+        select count(distinct account_id) as keyword_search_customers
+        from (
+            select distinct all_customers.account_id, case when is_ns IS TRUE then TRUE ELSE FALSE end as is_ns
+         from 
+        (
+        select account_id from plg 
+        union all 
+        select account_id from slg
+        union all 
+        select account_id from free_customers) as all_customers
+
+        LEFT JOIN NS_customers ns on ns.account_id = all_customers.account_id)
+
+        where is_ns IS FALSE
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: keyword_search_customers
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 166
+            wrapText: null
+            displayFormat: null
+          - originalName: is_ns
+            renameTo: null
+            size: 83
+            wrapText: null
+            displayFormat: null
+          - originalName: keyword_search_customers
+            renameTo: null
+            size: 206
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: TEXT
+    cellId: 4c34bc01-990c-4bdd-9474-e053f6c13e6f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      richText:
+        - type: paragraph
+          children:
+            - text: Browse
+  - cellType: SQL
+    cellId: b90d9430-3e9d-4173-ad97-8a9701b3635c # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Browse req
+    config:
+      source: |2-
+            SELECT
+             feature_logs.appid as appid
+             --, SUM(CASE WHEN feature_logs.query.nbQueryWords = 0 AND feature_logs.query.enablePersonalization = True THEN 1 ELSE 0 END) as enable_personalization
+             , SUM(CASE WHEN feature_logs.query.nbQueryWords = 0 THEN feature_logs.api.nbQueries ELSE 0 END) as browse
+        FROM raw_product_external.feature_logs AS feature_logs
+        WHERE feature_logs.year || '-' || feature_logs.month || '-' || feature_logs.day BETWEEN {{start_date}} AND {{end_date}}
+        AND (feature_logs.query.nbFacetFilters > 0
+            or feature_logs.query.nbTagFilters > 0
+        )
+        GROUP BY feature_logs.appid
+      dataFrameCell: false
+      dataConnectionId: 63ebcea0-017f-4bcf-b58a-a2340a75845f
+      resultVariableName: browse_req
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: appid
+            renameTo: null
+            size: 144
+            wrapText: null
+            displayFormat: null
+          - originalName: browse
+            renameTo: null
+            size: 107
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 46
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 40739920-5ea4-4f05-ba20-58376bf0fd81 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Apps
+    config:
+      source: |2-
+            select public_application_id, apps.account_id
+            from prod_dimensional.dim_application apps
+            LEFT JOIN prod_dimensional.dim_account acc
+            on apps.account_id = acc.account_id
+            where deleted_at IS NULL
+            group by public_application_id, apps.account_id
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: apps
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 158
+            wrapText: null
+            displayFormat: null
+          - originalName: public_application_id
+            renameTo: null
+            size: 171
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 5caa0581-bcb3-456c-8e22-2432523c632a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Paid browse
+    config:
+      source: |-
+        select * from 
+        apps 
+            LEFT JOIN paying_customers pay
+            on apps.account_id = pay.account_id
+            where paid = 'yes'
+            --and type = 'slg'
+      dataFrameCell: true
+      dataConnectionId: null
+      resultVariableName: paid_browse
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 159
+            wrapText: null
+            displayFormat: null
+          - originalName: account_id_1
+            renameTo: null
+            size: 164
+            wrapText: null
+            displayFormat: null
+          - originalName: account_id_2
+            renameTo: null
+            size: 159
+            wrapText: null
+            displayFormat: null
+          - originalName: paid
+            renameTo: null
+            size: 78
+            wrapText: null
+            displayFormat: null
+          - originalName: public_application_id
+            renameTo: null
+            size: 171
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+          - originalName: type
+            renameTo: null
+            size: 79
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 61cfa835-de54-4ea5-bf18-cacfb1bc02c5 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Browse count
+    config:
+      source: |
+        SELECT COUNT(DISTINCT account_id) AS num_of_browse_accounts
+        FROM (
+            SELECT
+                browse_req.appid,
+                apps.account_id,
+                browse_req.browse
+            FROM browse_req
+            LEFT JOIN paid_browse apps ON apps.public_application_id = browse_req.appid
+        )
+        where browse > 0
+      dataFrameCell: true
+      dataConnectionId: null
+      resultVariableName: browse_count
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 166
+            wrapText: null
+            displayFormat: null
+          - originalName: appid
+            renameTo: null
+            size: 111
+            wrapText: null
+            displayFormat: null
+          - originalName: browse
+            renameTo: null
+            size: 94
+            wrapText: null
+            displayFormat: null
+          - originalName: num_of_browse_accounts
+            renameTo: null
+            size: 196
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 40
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 92052cb0-2340-4a62-9c6d-54d41e7727c1 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Churn
+    config:
+      source: |-
+        select count (distinct acc.account_id) as churned_accounts 
+        from prod_dimensional.dim_application apps
+        LEFT JOIN prod_dimensional.dim_account acc on acc.account_id = apps.account_id
+        where churn_date between {{start_date}} and {{end_date}}
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: churn
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: churned_accounts
+            renameTo: null
+            size: 151
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 38
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: METRIC
+    cellId: 13b232f4-e0c3-4e05-876f-ebf4e51a4f56 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Records
+      valueVariableName: total_search_records
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: records
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 931e50de-5dd0-4f25-a63f-8012fcd9301a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Total Keyword Search Accounts
+      valueVariableName: keyword_search_customers
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: PLAIN
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: keyword_search_customers
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: e3addfde-b0f6-4f92-ba42-2dce71298602 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Total Paid accounts
+      valueVariableName: total_customers
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: total_accounts
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 488f36d8-8538-495c-a908-2321bcf9f0ae # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Free Accounts
+      valueVariableName: total_free_customers
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: count_free_accounts
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 5d30a682-5af7-4433-afe3-5787bb60648d # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Total SLG Paying accounts
+      valueVariableName: slg_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: slg_customers
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 6eb2b282-431f-4407-9ad7-5b9575ce9023 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Total PLG Paying accounts
+      valueVariableName: plg_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: plg_customers
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: dd104ca9-6f14-4a6a-991f-93942064dcc6 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Neural Search customers
+      valueVariableName: data
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: total_accounts
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 81befdfa-7cf3-4484-89ec-a4c043aa2a50 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Neural Search ARR
+      valueVariableName: data
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: CURRENCY
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: ns_arr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: a3569b5b-ab21-4f9d-a052-2e90bb4d865e # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: SLG ARR
+      valueVariableName: slg_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: CURRENCY
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: total_arr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 1fc08080-a454-471a-b7ee-34aefd3c4961 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: PLG Revenue for the Quarter
+      valueVariableName: plg_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: CURRENCY
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: plg_revenue
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 76963465-b0c3-43cd-a12d-b5b3ff487020 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: SLG Search ARR
+      valueVariableName: slg_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: CURRENCY
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: search_arr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 62fcf651-8e5e-4b87-90ce-463f0ffdf152 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Total Search Requests
+      valueVariableName: total_search_requests
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: PLAIN
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: total_search_requests
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 263121bf-c12a-4ae0-a8ae-0dfe6db448f3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: NS pov signed
+      valueVariableName: pov_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: PLAIN
+        currency: USD
+        columnType: NUMBER
+        numDecimalDigits: 2
+        abbreviateLargeNumbers: false
+      valueColumn: pov_customers_signed
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 0ca039a2-e4a8-4ff0-bdc0-1fb781938992 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Value 52
+    config:
+      title: Paid Browse Customers
+      valueVariableName: browse_count
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: num_of_browse_accounts
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: INPUT
+    cellId: ebc8b9c5-4e76-417c-b37a-abeb540919b3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Previous quarter start
+    config:
+      inputType: DATE
+      name: previous_quarter_start
+      outputType: DATETIME
+      options:
+        enableTime: false
+        showRelativeDates: false
+        useDateRange: true
+      defaultValue:
+        - dateString: 2023-05-01
+        - dateString: 2023-07-31
+  - cellType: METRIC
+    cellId: 88c1b647-9c23-47aa-880b-47d02efaa959 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Churns in the quarter
+      valueVariableName: churn
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: null
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: churned_accounts
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_3
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: MARKDOWN
+    cellId: 84122441-1405-4f05-af7d-bb1d4174d276 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |+
+        #### AI Features
+
+  - cellType: SQL
+    cellId: d3d744a8-6f12-4499-85df-52db5e7d7539 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Used ai feature
+    config:
+      source: |-
+        SELECT distinct application_id 
+        from prod_product.daily_adoptions
+        where used IS TRUE 
+        and feature in ('dynamic_reranking', 'daily_adoptions_query_categorization__autofilter_boost', 'personalization')
+        and date = {{end_date}}
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: used_ai_feature
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: application_id
+            renameTo: null
+            size: 142
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 24
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 07ee4efb-6679-460e-8554-f0b4b748eb0f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |
+        select count(distinct application_id), date from prod_product.daily_adoptions_query_categorization__autofilter_boost
+        where date > current_date-30
+        and used IS TRUE
+        group by date
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_20
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: date
+        defaultSortIndexColumn: null
+        defaultSortDirection: DESC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: count
+            renameTo: null
+            size: 82
+            wrapText: null
+            displayFormat: null
+          - originalName: date
+            renameTo: null
+            size: 100
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 47
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 2c7f260d-9d0b-4f34-9e63-fa0110bbb6c0 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Using ai features
+    config:
+      source: |
+        WITH qcat_available AS (
+            SELECT 
+                qcat.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_query_categorization__autofilter_boost qcat 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = qcat.application_id
+            WHERE qcat.available IS TRUE
+              AND qcat.date = {{end_date}}
+        ),
+        qcat_activated AS (
+            SELECT 
+                qcat.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_query_categorization__autofilter_boost qcat 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = qcat.application_id
+            WHERE qcat.activated IS TRUE
+              AND qcat.date = {{end_date}}
+        ),
+        qcat_used AS (
+            SELECT 
+                qcat.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_query_categorization__autofilter_boost qcat 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = qcat.application_id
+            WHERE qcat.used IS TRUE
+              AND qcat.date = {{end_date}}
+        ),
+        qcat_churned AS (
+            SELECT 
+                qcat.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_query_categorization__autofilter_boost qcat 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = qcat.application_id
+            LEFT JOIN prod_dimensional.dim_account acc on acc.account_id = app.account_id
+            WHERE qcat.used IS TRUE
+            AND (acc.churn_date between {{start_date}} and {{end_date}} or deleted_at between {{start_date}} and {{end_date}})
+              AND qcat.date between {{start_date}} and {{end_date}}
+        ),
+        drr_available AS (
+            SELECT 
+                drr.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_dynamic_reranking drr 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = drr.application_id
+            WHERE drr.available IS TRUE
+              AND drr.date = {{end_date}}
+        ),
+        drr_activated AS (
+            SELECT 
+                drr.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_dynamic_reranking drr 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = drr.application_id
+            WHERE drr.activated IS TRUE
+              AND drr.date = {{end_date}}
+        ),
+        drr_used AS (
+            SELECT 
+                drr.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_dynamic_reranking drr 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = drr.application_id
+            WHERE drr.used IS TRUE
+              AND drr.date = {{end_date}}
+        ),
+        drr_churned AS (
+            SELECT 
+                drr.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_dynamic_reranking drr 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = drr.application_id
+            LEFT JOIN prod_dimensional.dim_account acc on acc.account_id = app.account_id
+            WHERE drr.used IS TRUE
+            AND (acc.churn_date between {{start_date}} and {{end_date}} or deleted_at between {{start_date}} and {{end_date}})
+              AND drr.date between {{start_date}} and {{end_date}}
+        ),
+        ns_available AS (
+            SELECT 
+                ns.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_neuralsearch ns 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = ns.application_id
+            WHERE ns.available IS TRUE
+              AND ns.date = {{end_date}}
+        ),
+        ns_activated AS (
+            SELECT 
+                ns.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_neuralsearch ns 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = ns.application_id
+            WHERE ns.activated IS TRUE
+              AND ns.date = {{end_date}}
+        ),
+        ns_used AS (
+            SELECT 
+                ns.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_neuralsearch ns 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = ns.application_id
+            WHERE ns.used IS TRUE
+              AND ns.date = {{end_date}}
+        ),
+        personalization_available AS (
+            SELECT 
+                p.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_personalization p 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = p.application_id
+            WHERE p.available IS TRUE
+              AND p.date = {{end_date}}
+        ),
+        personalization_activated AS (
+            SELECT 
+                p.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_personalization p 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = p.application_id
+            WHERE p.activated IS TRUE
+              AND p.date = {{end_date}}
+        ),
+        personalization_used AS (
+            SELECT 
+                p.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_personalization p 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = p.application_id
+            WHERE p.used IS TRUE
+              AND p.date = {{end_date}}
+        ),
+        perso_churned AS (
+            SELECT 
+                perso.application_id,
+                app.account_id
+            FROM prod_product.daily_adoptions_personalization perso 
+            LEFT JOIN prod_dimensional.dim_application app 
+                ON app.public_application_id = perso.application_id
+            LEFT JOIN prod_dimensional.dim_account acc on acc.account_id = app.account_id
+            WHERE perso.used IS TRUE
+            AND  (acc.churn_date between {{start_date}} and {{end_date}} or deleted_at between {{start_date}} and {{end_date}})
+              AND perso.date between {{start_date}} and {{end_date}}
+        ),
+        combined AS (
+           SELECT application_id,account_id FROM qcat_used
+            UNION
+            SELECT application_id,account_id FROM drr_used
+            UNION
+            SELECT application_id,account_id FROM ns_used
+            UNION
+            SELECT application_id,account_id FROM personalization_used
+        )
+        SELECT
+
+          (SELECT COUNT(DISTINCT application_id) FROM qcat_available) AS apps_available_qcat,
+            (SELECT COUNT(DISTINCT application_id) FROM qcat_activated) AS apps_activated_qcat,
+            (SELECT COUNT(DISTINCT application_id) FROM qcat_used) AS apps_using_qcat,
+            (SELECT COUNT(DISTINCT application_id) FROM qcat_churned) AS apps_churned_qcat,
+
+            (SELECT COUNT(DISTINCT application_id) FROM drr_available) AS apps_available_drr,
+            (SELECT COUNT(DISTINCT application_id) FROM drr_activated) AS apps_activated_drr,
+            (SELECT COUNT(DISTINCT application_id) FROM drr_used) AS apps_using_drr,
+            (SELECT COUNT(DISTINCT application_id) FROM drr_churned) AS apps_churned_drr,
+
+            (SELECT COUNT(DISTINCT application_id) FROM ns_available) AS apps_available_ns,
+            (SELECT COUNT(DISTINCT application_id) FROM ns_activated) AS apps_activated_ns,
+            (SELECT COUNT(DISTINCT application_id) FROM ns_used) AS apps_using_ns,
+
+            (SELECT COUNT(DISTINCT application_id) FROM personalization_available) AS apps_available_personalization,
+            (SELECT COUNT(DISTINCT application_id) FROM personalization_activated) AS apps_activated_personalization,
+            (SELECT COUNT(DISTINCT application_id) FROM personalization_used) AS apps_used_personalization,
+            (SELECT COUNT(DISTINCT application_id) FROM perso_churned) AS apps_churned_perso,
+
+            (SELECT COUNT(DISTINCT application_id) FROM combined) AS apps_using_at_least_one_feature,
+
+            (SELECT COUNT(DISTINCT account_id) FROM qcat_available) AS accounts_available_qcat,
+            (SELECT COUNT(DISTINCT account_id) FROM qcat_activated) AS accounts_activated_qcat,
+            (SELECT COUNT(DISTINCT account_id) FROM qcat_used) AS accounts_using_qcat,
+            (SELECT COUNT(DISTINCT account_id) FROM qcat_churned) AS accounts_churned_qcat,
+
+            (SELECT COUNT(DISTINCT account_id) FROM drr_available) AS accounts_available_drr,
+            (SELECT COUNT(DISTINCT account_id) FROM drr_activated) AS accounts_activated_drr,
+            (SELECT COUNT(DISTINCT account_id) FROM drr_used) AS accounts_using_drr,
+            (SELECT COUNT(DISTINCT account_id) FROM drr_churned) AS accounts_churned_drr,
+
+            (SELECT COUNT(DISTINCT account_id) FROM ns_available) AS accounts_available_ns,
+            (SELECT COUNT(DISTINCT account_id) FROM ns_activated) AS accounts_activated_ns,
+            (SELECT COUNT(DISTINCT account_id) FROM ns_used) AS accounts_using_ns,
+
+            (SELECT COUNT(DISTINCT account_id) FROM personalization_available) AS accounts_available_personalization,
+            (SELECT COUNT(DISTINCT account_id) FROM personalization_activated) AS accounts_activated_personalization,
+            (SELECT COUNT(DISTINCT account_id) FROM personalization_used) AS accounts_used_personalization,
+            (SELECT COUNT(DISTINCT account_id) FROM perso_churned) AS accounts_churned_perso,
+
+            (SELECT COUNT(DISTINCT account_id) FROM combined) AS accounts_using_at_least_one_feature;
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: using_ai_features
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_id
+            renameTo: null
+            size: 166
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_activated_drr
+            renameTo: null
+            size: 220
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_activated_ns
+            renameTo: null
+            size: 210
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_activated_personalization
+            renameTo: null
+            size: 246
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_activated_qcat
+            renameTo: null
+            size: 186
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_available_drr
+            renameTo: null
+            size: 220
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_available_ns
+            renameTo: null
+            size: 210
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_available_personalization
+            renameTo: null
+            size: 244
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_available_qcat
+            renameTo: null
+            size: 184
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_used_personalization
+            renameTo: null
+            size: 223
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_using_at_least_one_feature
+            renameTo: null
+            size: 257
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_using_drr
+            renameTo: null
+            size: 158
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_using_ns
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_using_personalization
+            renameTo: null
+            size: 226
+            wrapText: null
+            displayFormat: null
+          - originalName: accounts_using_qcat
+            renameTo: null
+            size: 166
+            wrapText: null
+            displayFormat: null
+          - originalName: application_id
+            renameTo: null
+            size: 128
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_activated_drr
+            renameTo: null
+            size: 180
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_activated_ns
+            renameTo: null
+            size: 170
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_activated_personalization
+            renameTo: null
+            size: 300
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_activated_qcat
+            renameTo: null
+            size: 190
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_available_drr
+            renameTo: null
+            size: 180
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_available_ns
+            renameTo: null
+            size: 170
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_available_personalization
+            renameTo: null
+            size: 300
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_available_qcat
+            renameTo: null
+            size: 190
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_churned_drr
+            renameTo: null
+            size: 160
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_churned_qcat
+            renameTo: null
+            size: 170
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_used_personalization
+            renameTo: null
+            size: 250
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_using_drr
+            renameTo: null
+            size: 140
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_using_ns
+            renameTo: null
+            size: 130
+            wrapText: null
+            displayFormat: null
+          - originalName: apps_using_qcat
+            renameTo: null
+            size: 150
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 46
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: MARKDOWN
+    cellId: 25ef0f4b-74dc-434d-94f3-3a3487153d9a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: Query Categorization
+  - cellType: METRIC
+    cellId: 3d1cbda8-7517-4e41-9974-81a5402a0370 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications Available Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: null
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_available_qcat
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_2
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: b4dd57c5-c766-4060-8ee9-22f061119b8b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications activated Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_activated_qcat
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_2
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: e2f3f432-41f4-4090-970b-4420da5a2fed # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications used Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_using_qcat
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_2
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: c83f6e3b-cdf0-4fe2-ba68-9dd8bb8463aa # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts used Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_using_qcat
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: a152a2f4-15a6-480b-889a-5325c6b9bb34 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts activated Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_activated_qcat
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 277b1b42-f560-4232-a91c-293b1106737f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts available Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_available_qcat
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 452ff49e-a192-4c14-aa87-5cc70fb785bd # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Apps Churned/Deleted that used Qcat
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: null
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_churned_qcat
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: e2e95e73-f81a-417f-a9ff-7394bcb9807f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Churned that used Qcat in the same quarter
+      valueVariableName: using_ai_features
+      showComparison: true
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_churned_qcat
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: MARKDOWN
+    cellId: 5150297c-0d1b-4a9e-8855-59bee56d1502 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: Personalization
+  - cellType: METRIC
+    cellId: 96477e98-438c-4197-a1ec-5321d3c92889 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts using Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: ABSOLUTE
+      comparisonVariableName: null
+      comparisonFormat: POSITIVE_NEGATIVE
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_used_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 51e6d481-d368-4fdf-8afd-5ad771a0cbbd # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Activated Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_activated_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 970abfb5-cadb-4dd8-8811-dbe3b4b19643 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts available Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_available_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 8282b245-fb79-4acb-b9aa-1aa83ef1fd8a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications available Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_available_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 3bd8682f-6431-4666-b6e1-0828bffcd3ba # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications activated Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_activated_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 1ccb0770-f4dd-4a97-8132-9ed5a8da752e # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications used Perso
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_used_personalization
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: d653957d-41fa-4d00-bbf1-f662b8296da9 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Apps Churned/Deleted that used Personalization
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_churned_perso
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: d36b69a2-f595-4638-89a7-5bfc1b828e01 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Churned that used Personalization in the same quarter
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_churned_perso
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: MARKDOWN
+    cellId: 8b3b9487-0a44-48b2-a04d-cfd8998490bb # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: Dynamic Reranking
+  - cellType: METRIC
+    cellId: 1ba5d741-280c-4792-a15b-0f1be86a54c3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts using DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_using_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 6ec83195-fe85-496d-99d6-9dff70338ea7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts activated DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_activated_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: c1490356-0874-4c2b-8757-fb19999c6fc9 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts available DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_available_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 1e78141d-e91d-439c-b421-81162c9e9091 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications available DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_available_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 8b74ecb0-c1ce-4897-8903-21c802cef7f7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications activated DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_activated_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 9e8069d8-3e25-4143-aee2-c84d0af29e4a # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Applications used DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_using_drr
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: METRIC
+    cellId: 99c73748-d860-4ba6-b640-cc54012e5f3f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Apps Churned/Deleted that used DRR
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: apps_churned_drr
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: 7c7e4e77-2a16-4bff-8e68-aeeeed459a9e # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Churned that used DRR in the same quarter
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_churned_drr
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value_4
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: MARKDOWN
+    cellId: 9277657a-2b84-44e2-95b4-06a62247a9ac # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: Other
+  - cellType: METRIC
+    cellId: 5393ce5a-c2ec-4d0f-b236-783f37c59004 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Available NS
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: null
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_available_ns
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: 3c511b1d-3276-46c9-b5a4-14dfbcc7cefc # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts Activated NS
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_activated_ns
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: eabbf402-0bdd-46f6-82af-e0dabae04d50 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts using NS
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: ""
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: -1
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_using_ns
+      valueRowIndex: null
+      valueAggregate: Sum
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: value
+      comparisonResultVariable: comparison_value
+      outputResult: true
+  - cellType: METRIC
+    cellId: be7df3ef-c4e5-4592-ac98-55896e263046 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      title: Accounts using atleast one of DRR, Perso, Qcat OR NS
+      valueVariableName: using_ai_features
+      showComparison: false
+      comparisonType: VALUE
+      comparisonVariableName: null
+      comparisonFormat: null
+      comparisonLabel: ""
+      displayFormat:
+        format: NUMBER
+        currency: USD
+        columnType: NUMBER
+        showSeparators: true
+        numDecimalDigits: 0
+        abbreviateLargeNumbers: false
+      valueColumn: accounts_using_at_least_one_feature
+      valueRowIndex: 0
+      valueAggregate: null
+      comparisonColumn: null
+      comparisonRowIndex: null
+      comparisonAggregate: null
+      valueResultVariable: null
+      comparisonResultVariable: null
+      outputResult: false
+  - cellType: SQL
+    cellId: b7cd3fa8-103a-456e-95dc-140fe5ce00c7 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Fix SQL Query
+    config:
+      source: |
+        SELECT
+            COUNT(DISTINCT CASE
+                WHEN ((request_filters_generated + request_boost_generated) >= 100)
+                    THEN app.account_id
+            END) AS using_afb_1
+        FROM
+            prod_analytics.query_categorization AS query_categorization
+        LEFT JOIN
+            prod_dimensional.dim_application AS app
+            ON app.public_application_id = query_categorization.application_id
+        LEFT JOIN
+            prod_dimensional.dim_account AS acc
+            ON acc.account_id = app.account_id
+
+        WHERE
+            (((date) >= (DATE '2023-08-01')) AND (date) < (DATE '2023-10-31'))
+            AND (request_filters_generated + request_boost_generated) >= 100
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_15
+      useRichDisplay: false
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig: null
+  - cellType: SQL
+    cellId: 33cb3f88-3e78-48ee-a9dc-4ac95c1b9a50 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |
+        SELECT
+            COUNT(DISTINCT CASE
+                WHEN ((request_filters_generated + request_boost_generated) >= 100)
+                    THEN app.account_id
+            END) AS using_afb_1,
+             SUM(DISTINCT CASE
+                WHEN ((request_filters_generated + request_boost_generated) >= 100)
+                    THEN arr
+            END) AS using_afb_1_arr
+        FROM
+            prod_analytics.query_categorization AS query_categorization
+        LEFT JOIN
+            prod_dimensional.dim_application AS app
+            ON app.public_application_id = query_categorization.application_id
+        LEFT JOIN
+            prod_dimensional.dim_account AS acc
+            ON acc.account_id = app.account_id
+
+        WHERE
+            (((date) >= (DATE '2023-11-01')) AND (date) < (DATE '2024-01-31'))
+            AND (request_filters_generated + request_boost_generated) >= 100
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_16
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: row-index-0
+            renameTo: null
+            size: 38
+            wrapText: null
+            displayFormat: null
+          - originalName: using_afb_1
+            renameTo: null
+            size: 121
+            wrapText: null
+            displayFormat: null
+          - originalName: using_afb_1_arr
+            renameTo: null
+            size: 143
+            wrapText: null
+            displayFormat:
+              format: NUMBER
+              currency: USD
+              columnType: NUMBER
+              numDecimalDigits: 2
+              abbreviateLargeNumbers: false
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 32d088b4-3826-493e-b7b0-042a39e32c9f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: ARR for AI Features
+    config:
+      source: |
+        
+        SELECT
+            SUM(
+                DISTINCT CASE
+                    WHEN
+                            a.feature IN ('personalization', 'dynamic_reranking')
+                            AND a.used
+                            THEN arr
+                    ELSE 0
+                END
+            ) AS arr_atleast_one_ai
+        FROM prod_product.daily_adoptions AS a
+        LEFT JOIN
+            prod_dimensional.dim_application AS app
+            ON app.public_application_id = a.application_id
+        LEFT JOIN prod_dimensional.dim_account AS acc ON acc.account_id = app.account_id
+        WHERE
+            a.date >= '2023-11-01' AND a.date < '2024-01-31'
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_17
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: arr_atleast_one_ai
+            renameTo: null
+            size: 154
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 38
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 98240225-67cb-43c4-b4c6-6020ada3dcc3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |-
+        select account_name, arr, churn_date, ultimate_parent_total_arr from prod_dimensional.dim_account
+        where churn_date IS NOT NULL 
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_18
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: 1350
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: churn_date
+        defaultSortIndexColumn: null
+        defaultSortDirection: DESC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_name
+            renameTo: null
+            size: 278
+            wrapText: null
+            displayFormat: null
+          - originalName: arr
+            renameTo: null
+            size: 67
+            wrapText: null
+            displayFormat: null
+          - originalName: churn_date
+            renameTo: null
+            size: 195
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 24
+            wrapText: null
+            displayFormat: null
+          - originalName: ultimate_parent_total_arr
+            renameTo: null
+            size: 192
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: SQL
+    cellId: 1de039ec-7e1c-4322-8fb1-d3bfc9761a6d # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: select * from  prod_dimensional.dim_account
+      dataFrameCell: false
+      dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+      resultVariableName: dataframe_19
+      useRichDisplay: true
+      sqlCellOutputType: PANDAS
+      useQueryMode: false
+      castDecimals: true
+      useNativeDates: true
+      outputFilteredResult: true
+      allowDuplicateColumns: false
+      tableDisplayConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters: null
+        columnProperties:
+          - originalName: account_hierarchy_level
+            renameTo: null
+            size: 276
+            wrapText: null
+            displayFormat: null
+          - originalName: account_hierarchy_type
+            renameTo: null
+            size: 264
+            wrapText: null
+            displayFormat: null
+          - originalName: account_id
+            renameTo: null
+            size: 120
+            wrapText: null
+            displayFormat: null
+          - originalName: account_name
+            renameTo: null
+            size: 144
+            wrapText: null
+            displayFormat: null
+          - originalName: account_status
+            renameTo: null
+            size: 168
+            wrapText: null
+            displayFormat: null
+          - originalName: contract_status
+            renameTo: null
+            size: 180
+            wrapText: null
+            displayFormat: null
+          - originalName: has_activated_contract
+            renameTo: null
+            size: 264
+            wrapText: null
+            displayFormat: null
+          - originalName: open_opportunity_count
+            renameTo: null
+            size: 264
+            wrapText: null
+            displayFormat: null
+          - originalName: parent_account_id
+            renameTo: null
+            size: 204
+            wrapText: null
+            displayFormat: null
+          - originalName: parent_account_name
+            renameTo: null
+            size: 228
+            wrapText: null
+            displayFormat: null
+          - originalName: renewal_opportunity_status
+            renameTo: null
+            size: 312
+            wrapText: null
+            displayFormat: null
+          - originalName: row-index-0
+            renameTo: null
+            size: 46
+            wrapText: null
+            displayFormat: null
+          - originalName: ultimate_parent_account_id
+            renameTo: null
+            size: 312
+            wrapText: null
+            displayFormat: null
+          - originalName: ultimate_parent_account_name
+            renameTo: null
+            size: 336
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: CHARTV2
+    cellId: 45e4515a-b4ef-4b09-8c95-d2b1f44426ec # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      height: null
+      chartSpec:
+        type: layered
+        layers:
+          - id: 8f4bd1ac-8543-4e74-924e-42d9ebde43db
+            xAxis:
+              type: datetime
+              style:
+                grid:
+                  style: solid
+                ticks: {}
+                labels: {}
+              timeUnit: yearmonth
+              dataFrameColumn: churn_date
+            series:
+              - id: bbfb7b07-322f-4e22-be0e-4c30ae3ce1d1
+                type: bar
+                axis:
+                  type: string
+                  style:
+                    grid:
+                      style: solid
+                    ticks: {}
+                    labels: {}
+                  aggregate: distinct
+                dataFrameColumns:
+                  - account_id
+                colorOrder: ascending
+                color:
+                  type: static
+                opacity:
+                  type: static
+                  value: 1
+                tooltip:
+                  type: auto
+                dataLabels:
+                  position: inside-end
+                barWidth: 1
+                orientation: vertical
+                layout: stacked
+            dataFrame: dataframe_19
+        settings:
+          legend:
+            position: right
+          tooltip: true
+          selectionEnabled: false
+      chartSelection: {}
+      colorMappings: {}
+      resultVariable: chart_result_2
+      outputResult: true
+      displayType: CHART
+      displayTableConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        defaultColumnWidth: null
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        calcs: null
+        filters:
+          - column: created_at
+            predicate:
+              op: DATE_BETWEEN
+              arg:
+                - 2020-03-01
+                - 2024-08-31T23:59:59.999
+            columnType: DATETIME
+        columnProperties: []
+        columnOrdering: null
+        customColumnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+        pinIndexColumns: false
+        showAggregations: false
+        columnAggregations: null
+  - cellType: MARKDOWN
+    cellId: fae0754d-54c4-4506-bade-af2eaa9ce685 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: null
+    config:
+      source: |-
+        #### For in-depth understanding of individual features : https://app.hex.tech/ec8d7adc-d435-47ec-841b-ff2cff6432a3/app/d78bb495-e124-47b7-8a38-4e9c5ae003e9/latest
+        #### Features are defined here by product owners : https://docs.google.com/spreadsheets/d/1_Sss-huG7yCAfAnYsw8Ub_FYkWxPasZKJ4eeDz5NuZc/edit?gid=590974313#gid=590974313
+appLayout:
+  visibleMetadataFields:
+    - NAME
+    - DESCRIPTION
+    - AUTHOR
+    - LAST_EDITED
+    - LAST_RUN
+    - CATEGORIES
+    - STATUS
+    - TABLE_OF_CONTENTS
+  fullWidth: false
+  tabs:
+    - name: Search
+      rows:
+        - columns:
+            - start: 0
+              end: 25
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 83f8e035-ab6f-4978-a673-0517b6738ba4
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 25
+              end: 50
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b672a464-fe0f-4bb5-93a0-c6cc438cfd0b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 09e1d81e-b7d4-450f-bec6-5a1eba269991
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b3e1f060-0bf1-4e1d-899d-c88e089c1a2b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 25
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 931e50de-5dd0-4f25-a63f-8012fcd9301a
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 25
+              end: 50
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: e3addfde-b0f6-4f92-ba42-2dce71298602
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 25
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 488f36d8-8538-495c-a908-2321bcf9f0ae
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 25
+              end: 55
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 5d30a682-5af7-4433-afe3-5787bb60648d
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 55
+              end: 85
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 6eb2b282-431f-4407-9ad7-5b9575ce9023
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 40
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: a3569b5b-ab21-4f9d-a052-2e90bb4d865e
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 40
+              end: 80
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 1fc08080-a454-471a-b7ee-34aefd3c4961
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 80
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 76963465-b0c3-43cd-a12d-b5b3ff487020
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 43
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 62fcf651-8e5e-4b87-90ce-463f0ffdf152
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 43
+              end: 85
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 13b232f4-e0c3-4e05-876f-ebf4e51a4f56
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 85
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 0ca039a2-e4a8-4ff0-bdc0-1fb781938992
+                  sharedFilterId: null
+                  height: null
+                  showLabel: false
+                  explorable: null
+    - name: AI features
+      rows:
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: fae0754d-54c4-4506-bade-af2eaa9ce685
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 83f8e035-ab6f-4978-a673-0517b6738ba4
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b672a464-fe0f-4bb5-93a0-c6cc438cfd0b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: be7df3ef-c4e5-4592-ac98-55896e263046
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 25ef0f4b-74dc-434d-94f3-3a3487153d9a
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 3d1cbda8-7517-4e41-9974-81a5402a0370
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b4dd57c5-c766-4060-8ee9-22f061119b8b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: e2f3f432-41f4-4090-970b-4420da5a2fed
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 452ff49e-a192-4c14-aa87-5cc70fb785bd
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 277b1b42-f560-4232-a91c-293b1106737f
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: a152a2f4-15a6-480b-889a-5325c6b9bb34
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: c83f6e3b-cdf0-4fe2-ba68-9dd8bb8463aa
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: e2e95e73-f81a-417f-a9ff-7394bcb9807f
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 5150297c-0d1b-4a9e-8855-59bee56d1502
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 8282b245-fb79-4acb-b9aa-1aa83ef1fd8a
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 3bd8682f-6431-4666-b6e1-0828bffcd3ba
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 1ccb0770-f4dd-4a97-8132-9ed5a8da752e
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: d653957d-41fa-4d00-bbf1-f662b8296da9
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 970abfb5-cadb-4dd8-8811-dbe3b4b19643
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 51e6d481-d368-4fdf-8afd-5ad771a0cbbd
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 96477e98-438c-4197-a1ec-5321d3c92889
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: d36b69a2-f595-4638-89a7-5bfc1b828e01
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 8b3b9487-0a44-48b2-a04d-cfd8998490bb
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 1e78141d-e91d-439c-b421-81162c9e9091
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 8b74ecb0-c1ce-4897-8903-21c802cef7f7
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 9e8069d8-3e25-4143-aee2-c84d0af29e4a
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 99c73748-d860-4ba6-b640-cc54012e5f3f
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: c1490356-0874-4c2b-8757-fb19999c6fc9
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 6ec83195-fe85-496d-99d6-9dff70338ea7
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 1ba5d741-280c-4792-a15b-0f1be86a54c3
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 7c7e4e77-2a16-4bff-8e68-aeeeed459a9e
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+    - name: Neural Search
+      rows:
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 83f8e035-ab6f-4978-a673-0517b6738ba4
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b672a464-fe0f-4bb5-93a0-c6cc438cfd0b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 7be0193e-2e7d-46ca-b873-352051d889c7
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: dd104ca9-6f14-4a6a-991f-93942064dcc6
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 263121bf-c12a-4ae0-a8ae-0dfe6db448f3
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 81befdfa-7cf3-4484-89ec-a4c043aa2a50
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+        - columns:
+            - start: 0
+              end: 40
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 5393ce5a-c2ec-4d0f-b236-783f37c59004
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 40
+              end: 80
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 3c511b1d-3276-46c9-b5a4-14dfbcc7cefc
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 80
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: eabbf402-0bdd-46f6-82af-e0dabae04d50
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+    - name: Health
+      rows:
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b3e1f060-0bf1-4e1d-899d-c88e089c1a2b
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 30
+              end: 60
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 2f30fa8c-c23b-4dff-a6ec-45c61c0183aa
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 60
+              end: 90
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 65d01023-6ebf-4e1d-9418-93c60c58664a
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+            - start: 90
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 4c5d4dc7-9b18-4375-9730-674ec1bf7339
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+                  explorable: null
+sharedFilters: []

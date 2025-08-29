@@ -1,0 +1,20 @@
+schemaVersion: 3
+meta:
+  title: Third Redshift Connection Test
+  description: Test file with the third Redshift connection ID
+  projectId: test-third-redshift
+cells:
+  - cellType: SQL
+    cellId: test-third-redshift-connection
+    config:
+      dataConnectionId: 0d0da619-5aa7-4f55-b020-ba94bfa77917
+      source: |
+        SELECT 
+          'Third Redshift Connection Test' as test_name,
+          COUNT(*) as record_count
+        FROM prod_common.account
+        WHERE status = 'active'
+sharedAssets:
+  dataConnections:
+    - dataConnectionId: 0d0da619-5aa7-4f55-b020-ba94bfa77917
+defaultDataConnectionId: 0d0da619-5aa7-4f55-b020-ba94bfa77917

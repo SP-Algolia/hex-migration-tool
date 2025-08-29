@@ -1,0 +1,658 @@
+schemaVersion: 3
+meta:
+  sourceVersionId: 0198c79e-9524-7003-8a19-e9340c4f9d3e
+  description: This is a space you can use to get the details on customers, csm, usage,
+    plans etc.  of a list of apps you have as a csv.
+  projectId: 1a5de06d-e966-4dd5-a50d-67ecb8ccb122
+  title: Find Basic Details for your app list
+  timezone: null
+  appTheme: SYS_PREF
+  codeLanguage: PYTHON
+  status:
+    name: Complete
+  categories: []
+  castDecimalsDefault: true
+  logicQueryCacheTimeout: null
+  publishedQueryCacheTimeout: null
+  hexType: PROJECT
+  allowExecutionReordering: true
+  prerunApp: false
+  cachePublishedAppState: true
+  refreshStalePublishedApp: false
+  autoRerunApp: true
+projectAssets:
+  dataConnections: []
+  envVars: []
+  secrets: []
+sharedAssets:
+  secrets: []
+  vcsPackages: []
+  dataConnections:
+  - dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+  externalFileIntegrations: []
+cells:
+- cellType: MARKDOWN
+  cellId: 95da1a34-c1c8-492e-8cb1-4276e86e9b8f
+  cellLabel: null
+  config:
+    source: ' Important to note before uploading your file
+
+
+      #### Name your application id field - "app_id"'
+- cellType: INPUT
+  cellId: 6b20cc5f-9bf9-42d0-9cd6-cff7f43ed427
+  cellLabel: csv_file
+  config:
+    inputType: FILE_UPLOAD
+    name: csv_file
+    outputType: DATA_FRAME
+    options: null
+    defaultValue:
+      id: 0198c79e-953d-7003-8a1a-07a8f9e736b7
+      name: AppIds needing SF Sccount name and ARR  - Sheet1 (2).csv
+      type: FILE
+- cellType: SQL
+  cellId: b466f975-ec04-4fd6-b293-bf871f5295af
+  cellLabel: Sf account data
+  config:
+    source: "-- use the below filter to get all active customers in your query\n--\
+      \  WHERE applications.deleted_at IS NULL\n-- AND churn_date IS NULL\n\n\nselect\n\
+      \    applications.public_application_id,\n    salesforce_application_id ,\n\
+      \    is_plg_90days,\n    max_record_size_bytes,\n    pay_as_you_go,\n    CASE\
+      \ WHEN units_quota < 0 then 0 ELSE units_quota END as units_quota ,\n    --used_operations_quota_percent\
+      \ as used_operations_quota_percent_2_days_ago,\n    analytics_retention_days,\n\
+      \    dashboard_plans.plan_label as plan_name,\n    dashboard_plans.plan_version,\n\
+      \    applications.account_id,\n    salesforce_accounts.account_name,\n    trachier_global_account_id\
+      \ as ultimate_parent_account_id,\n    trachier_global_account_name as ultimate_parent_account_name,\n\
+      \    salesforce_accounts.website,\n    salesforce_accounts.website_traffic,\n\
+      \    salesforce_accounts.industry_category,\n   CASE WHEN (\n        industry_vertical\
+      \ IS NULL\n        OR industry_vertical = ''\n        OR industry_vertical =\
+      \ ' '\n    ) THEN 'No Value'\n    ELSE industry_vertical END AS industry_vertical,\n\
+      \    record_type_description,\n    salesforce_accounts.naics_category,\n   \
+      \ algolia_industry_classification,\n    salesforce_accounts.billing_country\
+      \ AS country,\n    salesforce_accounts.region,\n    salesforce_accounts.arr\
+      \ AS arr_for_accounts_not_apps,\n    csm_owner_name,\n    CONCAT(users_raw.firstname,\
+      \ users_raw.lastname) as technical_owner,\n    has_activated_contract,\n   \
+      \ applications.deleted_at,\n    salesforce_accounts.churn_date,\n    blocked_at\n\
+      from\n    prod_dimensional.dim_application AS applications \nLEFT JOIN\n   \
+      \ prod_dimensional.dim_plan AS dashboard_plans\n    ON dashboard_plans.plan_id\
+      \ = applications.application_plan_id\n    \nLEFT JOIN prod_dimensional.dim_account\
+      \ AS salesforce_accounts\n    ON salesforce_accounts.account_id = applications.account_id\n\
+      \nLEFT JOIN prod_dimensional.dim_user_all AS users\n    ON users.user_id = applications.owner_user_id\n\
+      \nLEFT JOIN source.salesforce.account as raw_sfdc on raw_sfdc.id = salesforce_accounts.account_id\n\
+      LEFT JOIN source.salesforce.user as users_raw ON users_raw.id = raw_sfdc.technical_account_manager__c\n\
+      \nLEFT JOIN prod_usages.current_consumptions as consumptions on consumptions.application_id\
+      \ = applications.public_application_id\n\ngroup by\n    applications.public_application_id,\n\
+      \    salesforce_application_id ,\n    is_plg_90days,\n    max_record_size_bytes,\n\
+      \    pay_as_you_go,\n    dashboard_plans.plan_label ,\n    dashboard_plans.plan_version,\n\
+      \    analytics_retention_days,\n    applications.account_id,\n    salesforce_accounts.account_name,\n\
+      \    ultimate_parent_account_id,\n    ultimate_parent_account_name,\n    salesforce_accounts.website,\n\
+      \    salesforce_accounts.website_traffic,\n    salesforce_accounts.industry_category,\n\
+      \    salesforce_accounts.industry_vertical,\n    record_type_description,\n\
+      \    salesforce_accounts.naics_category,\n    salesforce_accounts.algolia_industry_classification,\n\
+      \    salesforce_accounts.billing_country ,\n    salesforce_accounts.region,\n\
+      \    salesforce_accounts.arr ,\n    csm_owner_name,\n    has_activated_contract,\n\
+      \    applications.deleted_at,\n    salesforce_accounts.churn_date,\n    blocked_at,\n\
+      \   CONCAT(users_raw.firstname, users_raw.lastname),\n   units_quota,\n   used_operations_quota_percent"
+    dataFrameCell: false
+    dataConnectionId: 0196d84e-3399-7000-ba4e-6c93736d59a8
+    resultVariableName: sf_account_data
+    useRichDisplay: true
+    sqlCellOutputType: PANDAS
+    useQueryMode: false
+    castDecimals: true
+    useNativeDates: true
+    outputFilteredResult: true
+    allowDuplicateColumns: false
+    tableDisplayConfig:
+      pageSize: 50
+      height: null
+      hideIcons: false
+      defaultColumnWidth: null
+      hideIndex: false
+      defaultSortColumn: null
+      defaultSortIndexColumn: null
+      defaultSortDirection: ASC
+      conditionalFormatting: null
+      calcs: null
+      filters: null
+      columnProperties:
+      - originalName: account_id
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: account_name
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: analytics_retention_days
+        renameTo: null
+        size: 240
+        wrapText: null
+        displayFormat: null
+      - originalName: is_plg_90days
+        renameTo: null
+        size: 130
+        wrapText: null
+        displayFormat: null
+      - originalName: max_record_size_bytes
+        renameTo: null
+        size: 210
+        wrapText: null
+        displayFormat: null
+      - originalName: pay_as_you_go
+        renameTo: null
+        size: 130
+        wrapText: null
+        displayFormat: null
+      - originalName: plan_name
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: plan_version
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: public_application_id
+        renameTo: null
+        size: 210
+        wrapText: null
+        displayFormat: null
+      - originalName: row-index-0
+        renameTo: null
+        size: 46
+        wrapText: null
+        displayFormat: null
+      - originalName: salesforce_application_id
+        renameTo: null
+        size: 250
+        wrapText: null
+        displayFormat: null
+      - originalName: ultimate_parent_account_id
+        renameTo: null
+        size: 260
+        wrapText: null
+        displayFormat: null
+      - originalName: ultimate_parent_account_name
+        renameTo: null
+        size: 280
+        wrapText: null
+        displayFormat: null
+      - originalName: units_quota
+        renameTo: null
+        size: 115
+        wrapText: null
+        displayFormat: null
+      columnOrdering: null
+      customColumnOrdering: null
+      pinnedColumns: null
+      hiddenColumns: null
+      pinIndexColumns: false
+      showAggregations: false
+      columnAggregations: null
+- cellType: SQL
+  cellId: 0252dbb5-9805-46a7-a7ff-7a3292cc7fe8
+  cellLabel: Csv apps
+  config:
+    source: select * from csv_file
+    dataFrameCell: true
+    dataConnectionId: null
+    resultVariableName: csv_apps
+    useRichDisplay: true
+    sqlCellOutputType: PANDAS
+    useQueryMode: false
+    castDecimals: true
+    useNativeDates: true
+    outputFilteredResult: true
+    allowDuplicateColumns: false
+    tableDisplayConfig:
+      pageSize: 50
+      height: null
+      hideIcons: false
+      defaultColumnWidth: null
+      hideIndex: false
+      defaultSortColumn: null
+      defaultSortIndexColumn: null
+      defaultSortDirection: ASC
+      conditionalFormatting: null
+      calcs: null
+      filters: null
+      columnProperties:
+      - originalName: app_id
+        renameTo: null
+        size: 112
+        wrapText: null
+        displayFormat: null
+      - originalName: public_application_id
+        renameTo: null
+        size: 168
+        wrapText: null
+        displayFormat: null
+      - originalName: row-index-0
+        renameTo: null
+        size: 46
+        wrapText: null
+        displayFormat: null
+      - originalName: salesforce_application_id
+        renameTo: null
+        size: 189
+        wrapText: null
+        displayFormat: null
+      columnOrdering: null
+      customColumnOrdering: null
+      pinnedColumns: null
+      hiddenColumns: null
+      pinIndexColumns: false
+      showAggregations: false
+      columnAggregations: null
+- cellType: INPUT
+  cellId: 002972ad-807a-4e2f-9851-5c8c001cbf23
+  cellLabel: app_id
+  config:
+    inputType: MULTISELECT
+    name: app_id
+    outputType: DYNAMIC
+    options:
+      multiValueOptions:
+        dfName: csv_apps
+        columnName: app_id
+        variableName: csv_apps['app_id']
+    defaultValue:
+    - __hex_multiselect_select_all_option__
+- cellType: SQL
+  cellId: d523383c-e4df-4858-ad03-8a139cac2313
+  cellLabel: Usage
+  config:
+    source: "SELECT\n    d.application_id,\n    SUM(d.total_search_operations) AS\
+      \ total_search_operations_sum,\n    MAX(CASE WHEN da.feature = 'integration_crawler'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_crawler,\n\
+      \    MAX(CASE WHEN da.feature = 'query_categorization__autofilter_boost' AND\
+      \ da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_query_categorization__autofilter_boost,\n\
+      \    MAX(CASE WHEN da.feature = 'dynamic_reranking' AND da.used = TRUE THEN\
+      \ 'YES' ELSE 'NO' END) AS using_dynamic_reranking,\n    MAX(CASE WHEN da.feature\
+      \ = 'integration_shopify' AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_shopify,\n\
+      \    MAX(CASE WHEN da.feature = 'manual_synonyms' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_manual_synonyms,\n    MAX(CASE WHEN da.feature = 'integration_zendesk'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_zendesk,\n\
+      \    MAX(CASE WHEN da.feature = 'ab_testing' AND da.used = TRUE THEN 'YES' ELSE\
+      \ 'NO' END) AS using_ab_testing,\n    MAX(CASE WHEN da.feature = 'integration_docsearch'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_docsearch,\n\
+      \    MAX(CASE WHEN da.feature = 'optional_filters' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_optional_filters,\n    MAX(CASE WHEN da.feature =\
+      \ 'integration_instant_search_including_integrations' AND da.used = TRUE THEN\
+      \ 'YES' ELSE 'NO' END) AS using_integration_instant_search_including_integrations,\n\
+      \    MAX(CASE WHEN da.feature = 'integration_native_mobile' AND da.used = TRUE\
+      \ THEN 'YES' ELSE 'NO' END) AS using_integration_native_mobile,\n    MAX(CASE\
+      \ WHEN da.feature = 'insight_api_conversions' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_insight_api_conversions,\n    MAX(CASE WHEN da.feature\
+      \ = 'query_suggestions' AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_query_suggestions,\n\
+      \    MAX(CASE WHEN da.feature = 'integration_instant_search_excluding_integrations'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_instant_search_excluding_integrations,\n\
+      \    MAX(CASE WHEN da.feature = 'answers' AND da.used = TRUE THEN 'YES' ELSE\
+      \ 'NO' END) AS using_answers,\n    MAX(CASE WHEN da.feature = 'relevant_sort'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_relevant_sort,\n   \
+      \ MAX(CASE WHEN da.feature = 'distributed_search_network' AND da.used = TRUE\
+      \ THEN 'YES' ELSE 'NO' END) AS using_distributed_search_network,\n    MAX(CASE\
+      \ WHEN da.feature = 'recommend' AND da.used = TRUE THEN 'YES' ELSE 'NO' END)\
+      \ AS using_recommend,\n    MAX(CASE WHEN da.feature = 'personalization_classic'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_personalization_classic,\n\
+      \    MAX(CASE WHEN da.feature = 'rules' AND da.used = TRUE THEN 'YES' ELSE 'NO'\
+      \ END) AS using_rules,\n    MAX(CASE WHEN da.feature = 'integration_sfcc' AND\
+      \ da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_sfcc,\n    MAX(CASE\
+      \ WHEN da.feature = 'visual_editor' AND da.used = TRUE THEN 'YES' ELSE 'NO'\
+      \ END) AS using_visual_editor,\n    MAX(CASE WHEN da.feature = 'query_categorization__prediction'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_query_categorization__prediction,\n\
+      \    MAX(CASE WHEN da.feature = 'analytics_api' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_analytics_api,\n    MAX(CASE WHEN da.feature = 'integration_autocomplete'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_autocomplete,\n\
+      \    MAX(CASE WHEN da.feature = 'custom_ranking' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_custom_ranking,\n    MAX(CASE WHEN da.feature = 'integration_magento'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_magento,\n\
+      \    MAX(CASE WHEN da.feature = 'neuralsearch' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_neuralsearch,\n    MAX(CASE WHEN da.feature = 'custom_dictionaries'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_custom_dictionaries,\n\
+      \    MAX(CASE WHEN da.feature = 'analytics_dashboard' AND da.used = TRUE THEN\
+      \ 'YES' ELSE 'NO' END) AS using_analytics_dashboard,\n    MAX(CASE WHEN da.feature\
+      \ = 'integration_firebase' AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_integration_firebase,\n\
+      \    MAX(CASE WHEN da.feature = 'facet_filters' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_facet_filters,\n    MAX(CASE WHEN da.feature = 'query_categorization__analytics_per_category'\
+      \ AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_query_categorization__analytics_per_category,\n\
+      \    MAX(CASE WHEN da.feature = 'merchandising_studio' AND da.used = TRUE THEN\
+      \ 'YES' ELSE 'NO' END) AS using_merchandising_studio,\n    MAX(CASE WHEN da.feature\
+      \ = 'standard_replica' AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_standard_replica,\n\
+      \    MAX(CASE WHEN da.feature = 'dynamic_synonyms_suggestions' AND da.used =\
+      \ TRUE THEN 'YES' ELSE 'NO' END) AS using_dynamic_synonyms_suggestions,\n  \
+      \  MAX(CASE WHEN da.feature = 'insight_api_clicks' AND da.used = TRUE THEN 'YES'\
+      \ ELSE 'NO' END) AS using_insight_api_clicks,\n    MAX(CASE WHEN da.feature\
+      \ = 'multi_query' AND da.used = TRUE THEN 'YES' ELSE 'NO' END) AS using_multi_query\n\
+      \nFROM prod_usages.daily_per_application AS d\nLEFT JOIN prod_dimensional.dim_application_all\
+      \ app ON app.public_application_id = d.application_id\nLEFT JOIN prod_dimensional.dim_account\
+      \ a ON a.account_id = app.account_id\nLEFT JOIN prod_product.daily_adoptions\
+      \ da ON da.application_id = d.application_id\n    AND da.date = DATEADD(DAY,\
+      \ -10, CURRENT_DATE)  \nWHERE d.date > DATEADD(DAY, -30, CURRENT_DATE)\nGROUP\
+      \ BY d.application_id\n"
+    dataFrameCell: false
+    dataConnectionId: e2694948-2c20-47d3-b127-71448e2bf238
+    resultVariableName: usage
+    useRichDisplay: true
+    sqlCellOutputType: PANDAS
+    useQueryMode: false
+    castDecimals: true
+    useNativeDates: true
+    outputFilteredResult: true
+    allowDuplicateColumns: false
+    tableDisplayConfig:
+      pageSize: 50
+      height: null
+      hideIcons: false
+      defaultColumnWidth: null
+      hideIndex: false
+      defaultSortColumn: null
+      defaultSortIndexColumn: null
+      defaultSortDirection: ASC
+      conditionalFormatting: null
+      calcs: null
+      filters: null
+      columnProperties:
+      - originalName: actively_using_rules
+        renameTo: null
+        size: 161
+        wrapText: null
+        displayFormat: null
+      - originalName: application_id
+        renameTo: null
+        size: 128
+        wrapText: null
+        displayFormat: null
+      - originalName: row-index-0
+        renameTo: null
+        size: 46
+        wrapText: null
+        displayFormat: null
+      - originalName: search_rules_operations_sum
+        renameTo: null
+        size: 214
+        wrapText: null
+        displayFormat: null
+      - originalName: total_rules_operations_sum
+        renameTo: null
+        size: 203
+        wrapText: null
+        displayFormat: null
+      - originalName: total_search_operations_sum
+        renameTo: null
+        size: 270
+        wrapText: null
+        displayFormat: null
+      - originalName: using_ab_testing
+        renameTo: null
+        size: 160
+        wrapText: null
+        displayFormat: null
+      - originalName: using_dynamic_reranking
+        renameTo: null
+        size: 230
+        wrapText: null
+        displayFormat: null
+      - originalName: using_integration_crawler
+        renameTo: null
+        size: 250
+        wrapText: null
+        displayFormat: null
+      - originalName: using_integration_shopify
+        renameTo: null
+        size: 250
+        wrapText: null
+        displayFormat: null
+      - originalName: using_integration_zendesk
+        renameTo: null
+        size: 250
+        wrapText: null
+        displayFormat: null
+      - originalName: using_manual_synonyms
+        renameTo: null
+        size: 210
+        wrapText: null
+        displayFormat: null
+      - originalName: using_query_categorization__autofilter_boost
+        renameTo: null
+        size: 400
+        wrapText: null
+        displayFormat: null
+      columnOrdering: null
+      customColumnOrdering: null
+      pinnedColumns: null
+      hiddenColumns: null
+      pinIndexColumns: false
+      showAggregations: false
+      columnAggregations: null
+- cellType: MARKDOWN
+  cellId: 2714986d-67c8-4293-95ba-503121b756b9
+  cellLabel: null
+  config:
+    source: '#### Results'
+- cellType: SQL
+  cellId: 58e6d304-2f94-4975-85f7-a8b49b3d0f1f
+  cellLabel: App Usage Data Query
+  config:
+    source: "SELECT\n    p.*,\n    sf.*,\n    r.using_rules,\n    r.using_answers,\n\
+      \    r.application_id,\n    r.using_recommend,\n    r.using_ab_testing,\n  \
+      \  r.using_multi_query,\n    r.using_neuralsearch,\n    r.using_analytics_api,\n\
+      \    r.using_facet_filters,\n    r.using_relevant_sort,\n    r.using_visual_editor,\n\
+      \    r.using_custom_ranking,\n    r.using_manual_synonyms,\n    r.using_integration_sfcc,\n\
+      \    r.using_optional_filters,\n    r.using_standard_replica,\n    r.using_dynamic_reranking,\n\
+      \    r.using_query_suggestions,\n    r.using_insight_api_clicks,\n    r.using_analytics_dashboard,\n\
+      \    r.using_custom_dictionaries,\n    r.using_integration_crawler,\n    r.using_integration_magento,\n\
+      \    r.using_integration_shopify,\n    r.using_integration_zendesk,\n    r.using_integration_firebase,\n\
+      \    r.using_merchandising_studio,\n    r.total_search_operations_sum,\n   \
+      \ r.using_integration_docsearch,\n    r.using_insight_api_conversions,\n   \
+      \ r.using_personalization_classic,\n    r.using_integration_autocomplete,\n\
+      \    r.using_integration_native_mobile,\n    r.using_distributed_search_network,\n\
+      \    r.using_dynamic_synonyms_suggestions,\n    r.using_query_categorization__prediction,\n\
+      \    r.using_query_categorization__autofilter_boost,\n    r.using_query_categorization__analytics_per_category,\n\
+      \    r.using_integration_instant_search_excluding_integrations,\n    r.using_integration_instant_search_including_integrations\n\
+      FROM csv_apps AS p\nLEFT JOIN usage AS r ON p.app_id = r.application_id\nLEFT\
+      \ JOIN sf_account_data AS sf ON p.app_id = sf.public_application_id\ngroup by\
+      \ *;"
+    dataFrameCell: true
+    dataConnectionId: null
+    resultVariableName: dataframe_3
+    useRichDisplay: true
+    sqlCellOutputType: PANDAS
+    useQueryMode: false
+    castDecimals: true
+    useNativeDates: true
+    outputFilteredResult: true
+    allowDuplicateColumns: false
+    tableDisplayConfig:
+      pageSize: 50
+      height: 100
+      hideIcons: false
+      defaultColumnWidth: null
+      hideIndex: false
+      defaultSortColumn: null
+      defaultSortIndexColumn: null
+      defaultSortDirection: ASC
+      conditionalFormatting: null
+      calcs: null
+      filters: null
+      columnProperties:
+      - originalName: account_id
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: account_name
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: actively_using_rules
+        renameTo: null
+        size: 161
+        wrapText: null
+        displayFormat: null
+      - originalName: analytics_retention_days
+        renameTo: null
+        size: 240
+        wrapText: null
+        displayFormat: null
+      - originalName: app_id
+        renameTo: null
+        size: 114
+        wrapText: null
+        displayFormat: null
+      - originalName: csm_owner_name
+        renameTo: null
+        size: 150
+        wrapText: null
+        displayFormat: null
+      - originalName: is_plg_90days
+        renameTo: null
+        size: 130
+        wrapText: null
+        displayFormat: null
+      - originalName: max_record_size_bytes
+        renameTo: null
+        size: 210
+        wrapText: null
+        displayFormat: null
+      - originalName: pay_as_you_go
+        renameTo: null
+        size: 130
+        wrapText: null
+        displayFormat: null
+      - originalName: plan_name
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: plan_version
+        renameTo: null
+        size: 120
+        wrapText: null
+        displayFormat: null
+      - originalName: public_application_id
+        renameTo: null
+        size: 168
+        wrapText: null
+        displayFormat: null
+      - originalName: public_application_id_1
+        renameTo: null
+        size: 230
+        wrapText: null
+        displayFormat: null
+      - originalName: row-index-0
+        renameTo: null
+        size: 46
+        wrapText: null
+        displayFormat: null
+      - originalName: salesforce_application_id
+        renameTo: null
+        size: 189
+        wrapText: null
+        displayFormat: null
+      - originalName: salesforce_application_id_1
+        renameTo: null
+        size: 270
+        wrapText: null
+        displayFormat: null
+      - originalName: search_rules_operations_last_30_days
+        renameTo: null
+        size: 263
+        wrapText: null
+        displayFormat: null
+      - originalName: total_rules_operations_last_30_days
+        renameTo: null
+        size: 252
+        wrapText: null
+        displayFormat: null
+      - originalName: ultimate_parent_account_id
+        renameTo: null
+        size: 260
+        wrapText: null
+        displayFormat: null
+      - originalName: ultimate_parent_account_name
+        renameTo: null
+        size: 280
+        wrapText: null
+        displayFormat: null
+      - originalName: units_quota
+        renameTo: null
+        size: 115
+        wrapText: null
+        displayFormat: null
+      columnOrdering: null
+      customColumnOrdering: null
+      pinnedColumns: null
+      hiddenColumns: null
+      pinIndexColumns: false
+      showAggregations: false
+      columnAggregations: null
+appLayout:
+  visibleMetadataFields:
+  - NAME
+  - DESCRIPTION
+  - AUTHOR
+  - LAST_EDITED
+  - LAST_RUN
+  - CATEGORIES
+  - STATUS
+  - TABLE_OF_CONTENTS
+  fullWidth: false
+  tabs:
+  - name: Tab 1
+    rows:
+    - columns:
+      - start: 0
+        end: 120
+        elements:
+        - showSource: false
+          hideOutput: false
+          type: CELL
+          cellId: 95da1a34-c1c8-492e-8cb1-4276e86e9b8f
+          sharedFilterId: null
+          height: null
+          showLabel: true
+          explorable: null
+    - columns:
+      - start: 0
+        end: 30
+        elements:
+        - showSource: false
+          hideOutput: false
+          type: CELL
+          cellId: 6b20cc5f-9bf9-42d0-9cd6-cff7f43ed427
+          sharedFilterId: null
+          height: null
+          showLabel: true
+          explorable: null
+    - columns:
+      - start: 0
+        end: 120
+        elements:
+        - showSource: false
+          hideOutput: false
+          type: CELL
+          cellId: 2714986d-67c8-4293-95ba-503121b756b9
+          sharedFilterId: null
+          height: null
+          showLabel: true
+          explorable: null
+    - columns:
+      - start: 0
+        end: 120
+        elements:
+        - showSource: false
+          hideOutput: false
+          type: CELL
+          cellId: 58e6d304-2f94-4975-85f7-a8b49b3d0f1f
+          sharedFilterId: null
+          height: null
+          showLabel: true
+          explorable: null
+sharedFilters: []
