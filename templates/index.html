@@ -149,29 +149,6 @@
             margin-bottom: 2rem;
         }
         
-        .connection-input label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #4a5568;
-        }
-        
-        .connection-input input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .connection-input input:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(69, 183, 209, 0.1);
-        }
-        
         .action-button {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
@@ -436,16 +413,15 @@
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="connection-section">
                     <h3 class="section-title">⚙️ Configuration</h3>
-                    <div class="connection-input">
-                        <label for="databricks_conn_id">Databricks Connection ID:</label>
-                        <input 
-                            type="text" 
-                            id="databricks_conn_id" 
-                            name="databricks_conn_id" 
-                            value="0196d84e-3399-7000-ba4e-6c93736d59a8"
-                            placeholder="Enter your Databricks connection ID"
-                        >
-                    </div>
+                    <p style="color: #718096; margin-bottom: 1rem;">
+                        Using default Databricks connection. The tool will automatically update connection IDs during migration.
+                    </p>
+                    <input 
+                        type="hidden" 
+                        id="databricks_conn_id" 
+                        name="databricks_conn_id" 
+                        value="0196d84e-3399-7000-ba4e-6c93736d59a8"
+                    >
                 </div>
                 
                 <div class="upload-section">
