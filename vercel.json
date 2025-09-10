@@ -16,5 +16,8 @@
     "app.py": {
       "maxDuration": 30
     }
+  },
+  "env": {
+    "DEPLOYMENT_TRIGGER": "2025-09-10-force-update"
   }
 }
