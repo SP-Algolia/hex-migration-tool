@@ -13,10 +13,13 @@ import json
 from hex_migrate_redshift_to_databricks import transform_hex_yaml, load_yaml
 
 app = Flask(__name__)
-app.secret_key = 'hex-migration-secret-key-2025'
+app.secret_key = os.environ.get('SECRET_KEY', 'hex-migration-secret-key-2025')
 
 # Store processing results in memory (in production, use Redis or database)
 processing_results = {}
+
+# For Vercel compatibility
+application = app
 
 @app.route('/')
 def index():
@@ -315,4 +318,6 @@ def export_to_csv(session_id):
     )
 
 if __name__ == '__main__':
-    app.run(debug=True, port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV', 'production') != 'production'
+    app.run(debug=debug, host='0.0.0.0', port=port)
