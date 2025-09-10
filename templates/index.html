@@ -3,796 +3,677 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚀 Hex → Databricks Migration Tool</title>
+    <title>Hex to Databricks Migration Tool | Algolia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #ff6b6b;
-            --secondary-color: #4ecdc4;
-            --accent-color: #45b7d1;
-            --success-color: #96ceb4;
-            --warning-color: #feca57;
-            --error-color: #ff9ff3;
-            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --card-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            --border-radius: 15px;
+            /* Algolia Brand Colors */
+            --algolia-blue: #003dff;
+            --algolia-purple: #8b5cf6;
+            --algolia-teal: #00c9a7;
+            --algolia-dark: #21243d;
+            --algolia-gray: #54575a;
+            --algolia-light-gray: #f5f5f5;
+            --algolia-white: #ffffff;
+            --algolia-black: #000000;
+            
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, var(--algolia-blue), var(--algolia-purple));
+            --secondary-gradient: linear-gradient(135deg, var(--algolia-teal), var(--algolia-blue));
+            --background-gradient: linear-gradient(135deg, #fafafa 0%, #f0f2ff 100%);
+            
+            /* Typography */
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --border-radius: 12px;
+            --shadow: 0 4px 20px rgba(0, 61, 255, 0.1);
+            --shadow-hover: 0 8px 40px rgba(0, 61, 255, 0.15);
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-gradient);
+            font-family: var(--font-family);
+            background: var(--background-gradient);
+            color: var(--algolia-dark);
+            line-height: 1.6;
             min-height: 100vh;
-            color: #2c3e50;
         }
-        
-        .main-container {
+
+        .header {
+            background: var(--algolia-white);
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(0, 61, 255, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 61, 255, 0.05);
+        }
+
+        .header-content {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
-        
-        .header {
+
+        .algolia-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--algolia-dark);
+            margin: 0;
+        }
+
+        .header-subtitle {
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .hero-section {
             text-align: center;
             margin-bottom: 3rem;
-            color: white;
         }
-        
-        .header h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .header p {
-            font-size: 1.3rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-        
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: var(--border-radius);
-            box-shadow: var(--card-shadow);
-            padding: 2.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .metric-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            transition: transform 0.3s ease;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .metric-number {
+
+        .hero-title {
             font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            line-height: 1.2;
         }
-        
-        .metric-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            font-weight: 500;
+
+        .hero-description {
+            font-size: 1.2rem;
+            color: var(--algolia-gray);
+            max-width: 600px;
+            margin: 0 auto 2rem;
         }
-        
-        .upload-section {
+
+        .migration-card {
+            background: var(--algolia-white);
+            border-radius: var(--border-radius);
+            padding: 2.5rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
             margin-bottom: 2rem;
         }
-        
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            color: #2c3e50;
+
+        .migration-card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
         }
-        
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--algolia-dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .upload-area {
-            border: 3px dashed #e2e8f0;
+            border: 2px dashed rgba(0, 61, 255, 0.3);
             border-radius: var(--border-radius);
             padding: 3rem 2rem;
             text-align: center;
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.02), rgba(139, 92, 246, 0.02));
             transition: all 0.3s ease;
             cursor: pointer;
-            background: #f8fafc;
         }
-        
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--accent-color);
-            background: #ebf8ff;
-            transform: scale(1.02);
+
+        .upload-area:hover {
+            border-color: var(--algolia-blue);
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.05), rgba(139, 92, 246, 0.05));
         }
-        
+
+        .upload-area.dragover {
+            border-color: var(--algolia-blue);
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.08), rgba(139, 92, 246, 0.08));
+        }
+
         .upload-icon {
-            font-size: 4rem;
+            font-size: 3rem;
             margin-bottom: 1rem;
-            opacity: 0.6;
+            display: block;
         }
-        
+
         .upload-text {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #4a5568;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--algolia-dark);
             margin-bottom: 0.5rem;
         }
-        
+
         .upload-hint {
-            color: #a0aec0;
-            font-size: 1rem;
+            color: var(--algolia-gray);
+            font-size: 0.95rem;
         }
         
         .connection-section {
-            background: #f7fafc;
+            background: linear-gradient(135deg, rgba(0, 201, 167, 0.05), rgba(0, 61, 255, 0.05));
             padding: 1.5rem;
             border-radius: var(--border-radius);
             margin-bottom: 2rem;
+            border: 1px solid rgba(0, 201, 167, 0.2);
         }
-        
+
         .action-button {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
+            background: var(--primary-gradient);
+            color: var(--algolia-white);
             border: none;
-            padding: 1rem 2rem;
+            padding: 1rem 2.5rem;
             border-radius: var(--border-radius);
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             width: 100%;
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+            margin-top: 1.5rem;
+            font-family: var(--font-family);
         }
-        
+
         .action-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-1px);
         }
-        
+
         .action-button:disabled {
-            opacity: 0.6;
+            background: var(--algolia-light-gray);
+            color: var(--algolia-gray);
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
-        
+
         .progress-section {
+            background: var(--algolia-white);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin: 2rem 0;
             display: none;
-            margin-top: 2rem;
-            text-align: center;
         }
-        
+
         .progress-bar {
-            width: 100%;
-            height: 12px;
-            background: #e2e8f0;
-            border-radius: 6px;
+            background: var(--algolia-light-gray);
+            height: 8px;
+            border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 1rem;
+            margin: 1rem 0;
         }
-        
+
         .progress-fill {
+            background: var(--secondary-gradient);
             height: 100%;
-            background: linear-gradient(90deg, var(--accent-color), var(--secondary-color));
-            border-radius: 6px;
-            transition: width 0.5s ease;
-            animation: shimmer 2s infinite;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
         }
-        
-        @keyframes shimmer {
-            0% { background-position: -200px 0; }
-            100% { background-position: calc(200px + 100%) 0; }
-        }
-        
-        .notification {
-            padding: 1rem;
+
+        .results-section {
+            background: var(--algolia-white);
+            padding: 2.5rem;
             border-radius: var(--border-radius);
-            margin-top: 1rem;
-            font-weight: 500;
+            box-shadow: var(--shadow);
+            margin: 2rem 0;
             display: none;
-            animation: slideIn 0.3s ease;
         }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .notification.error {
-            background: linear-gradient(135deg, #ff9a9e, #fecfef);
-            color: #721c24;
-            border-left: 4px solid var(--error-color);
-        }
-        
-        .notification.success {
-            background: linear-gradient(135deg, #a8edea, #fed6e3);
-            color: #2f855a;
-            border-left: 4px solid var(--success-color);
-        }
-        
-        .notification.warning {
-            background: linear-gradient(135deg, #ffecd2, #fcb69f);
-            color: #c05621;
-            border-left: 4px solid var(--warning-color);
-        }
-        
-        .file-info {
-            background: linear-gradient(135deg, #a8edea, #fed6e3);
-            color: #2c5282;
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-            display: none;
-            font-weight: 500;
-        }
-        
-        .processing-stats {
-            display: none;
-            background: #f7fafc;
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-        }
-        
-        .stats-grid {
+
+        .stat-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            text-align: center;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
         }
-        
-        .stat-item {
-            background: white;
-            padding: 1rem;
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.05), rgba(139, 92, 246, 0.05));
+            padding: 1.5rem;
             border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 1px solid rgba(0, 61, 255, 0.1);
         }
-        
+
         .stat-number {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 700;
-            color: var(--accent-color);
-        }
-        
-        .stat-label {
-            font-size: 0.9rem;
-            color: #718096;
-            margin-top: 0.25rem;
-        }
-        
-        .action-buttons-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        .secondary-btn {
-            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
-            box-shadow: 0 4px 15px rgba(69, 183, 209, 0.4) !important;
-        }
-        
-        .secondary-btn:hover {
-            box-shadow: 0 6px 20px rgba(69, 183, 209, 0.6) !important;
-        }
-        
-        .detailed-results {
-            display: none;
-            background: #f7fafc;
-            padding: 1.5rem;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-        }
-        
-        .file-details-table {
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .table-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 1rem;
-            font-weight: 600;
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        .table-row {
-            padding: 1rem;
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 1rem;
-            border-bottom: 1px solid #e2e8f0;
-            transition: background-color 0.2s ease;
-        }
-        
-        .table-row:hover {
-            background: #f8fafc;
-        }
-        
-        .table-row:last-child {
-            border-bottom: none;
-        }
-        
-        .google-sheets-info {
-            background: linear-gradient(135deg, #34d399, #10b981);
-            color: white;
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-            text-align: center;
-            font-weight: 500;
-        }
-        
-        .google-sheets-info strong {
+            color: var(--algolia-blue);
             display: block;
-            margin-bottom: 0.5rem;
         }
-        
+
+        .stat-label {
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        .download-section {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .download-button {
+            flex: 1;
+            min-width: 200px;
+            background: var(--secondary-gradient);
+            color: var(--algolia-white);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .download-button:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .details-section {
+            margin-top: 2rem;
+        }
+
+        .details-toggle {
+            background: none;
+            border: none;
+            color: var(--algolia-blue);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .details-content {
+            background: var(--algolia-light-gray);
+            padding: 1.5rem;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .details-content.open {
+            display: block;
+        }
+
         .file-input {
             display: none;
         }
-        
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--algolia-blue);
+            text-decoration: none;
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .main-container {
-                padding: 1rem;
-            }
-            
-            .header h1 {
-                font-size: 2.5rem;
+            .hero-title {
+                font-size: 2rem;
             }
             
             .container {
+                padding: 2rem 1rem;
+            }
+            
+            .migration-card {
                 padding: 1.5rem;
             }
             
-            .metrics-grid {
-                grid-template-columns: 1fr;
+            .header-content {
+                padding: 0 1rem;
             }
-            
-            .upload-area {
-                padding: 2rem 1rem;
-            }
+        }
+
+        /* Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .processing {
+            animation: pulse 2s infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--algolia-light-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--algolia-blue);
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
-    <div class="main-container">
-        <div class="header">
-            <h1>🚀 Hex → Databricks Migration Tool</h1>
-            <p>Transform your Hex projects for Databricks with intelligent SQL conversion</p>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="algolia-logo">A</div>
+            <div>
+                <h1 class="header-title">Migration Tool</h1>
+                <p class="header-subtitle">Powered by Algolia</p>
+            </div>
         </div>
-        
-        <div class="container">
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-number">4,206</div>
-                    <div class="metric-label">Table Mappings</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-number">32</div>
-                    <div class="metric-label">Function Conversions</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-number">3</div>
-                    <div class="metric-label">Redshift Connections</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-number">Auto</div>
-                    <div class="metric-label">SQL Optimization</div>
-                </div>
+    </header>
+
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1 class="hero-title">Hex → Databricks Migration</h1>
+            <p class="hero-description">
+                Transform your Hex queries for seamless Databricks compatibility with intelligent AI-powered migration.
+            </p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="migration-card">
+            <h3 class="section-title">📁 Upload YAML File</h3>
+            
+            <div class="upload-area" id="uploadArea">
+                <span class="upload-icon">☁️</span>
+                <div class="upload-text">Drop your YAML file here or click to browse</div>
+                <div class="upload-hint">Supports .yaml and .yml files up to 10MB</div>
             </div>
             
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="connection-section">
-                    <h3 class="section-title">⚙️ Configuration</h3>
-                    <p style="color: #718096; margin-bottom: 1rem;">
-                        Using default Databricks connection. The tool will automatically update connection IDs during migration.
-                    </p>
-                    <input 
-                        type="hidden" 
-                        id="databricks_conn_id" 
-                        name="databricks_conn_id" 
-                        value="0196d84e-3399-7000-ba4e-6c93736d59a8"
-                    >
-                </div>
-                
-                <div class="upload-section">
-                    <h3 class="section-title">📁 Upload Files</h3>
-                    <div class="upload-area" id="uploadArea">
-                        <div class="upload-icon">📁</div>
-                        <div class="upload-text">Drag & drop your files here</div>
-                        <div class="upload-hint">or click to browse (.yaml, .yml, .zip files)</div>
-                        <input type="file" id="fileInput" name="file" class="file-input" accept=".yaml,.yml,.zip">
-                    </div>
-                    
-                    <div class="file-info" id="fileInfo"></div>
-                    
-                    <button type="submit" class="action-button" id="uploadBtn">
-                        🚀 Start Migration
-                    </button>
-                </div>
-            </form>
+            <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml" />
             
-            <div class="progress-section" id="progressSection">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-                </div>
-                <p style="color: #4a5568; font-weight: 500;">Processing your files...</p>
+            <div class="connection-section">
+                <h3 class="section-title">⚙️ Configuration</h3>
+                <p style="color: var(--algolia-gray); margin-bottom: 1rem;">
+                    Using default Databricks connection. The tool will automatically update connection IDs during migration.
+                </p>
+                <input 
+                    type="hidden" 
+                    id="databricks_conn_id" 
+                    name="databricks_conn_id" 
+                    value="0196d84e-3399-7000-ba4e-6c93736d59a8"
+                >
             </div>
+
+            <button class="action-button" id="uploadButton" disabled>
+                Start Migration
+            </button>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <h3 class="section-title">⚡ Processing</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="progressText">Preparing migration...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <h3 class="section-title">✅ Migration Complete</h3>
             
-            <div class="processing-stats" id="processingStats">
-                <h4 style="margin-bottom: 1rem; color: #2c3e50;">📊 Migration Results</h4>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-number" id="filesProcessed">0</div>
-                        <div class="stat-label">Files Processed</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="cellsRewritten">0</div>
-                        <div class="stat-label">Cells Rewritten</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="functionsConverted">0</div>
-                        <div class="stat-label">Functions Converted</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="tablesRemapped">0</div>
-                        <div class="stat-label">Tables Remapped</div>
-                    </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalQueriesProcessed">0</span>
+                    <div class="stat-label">Total Queries</div>
                 </div>
-                
-                <div class="results-actions" style="margin-top: 2rem; display: none;" id="resultsActions">
-                    <div class="action-buttons-grid">
-                        <button class="action-button download-btn" id="downloadBtn">
-                            📥 Download Migrated Files
-                        </button>
-                        <button class="action-button secondary-btn" id="exportBtn">
-                            📊 Export Report (CSV)
-                        </button>
-                        <button class="action-button secondary-btn" id="viewDetailsBtn">
-                            📋 View Details
-                        </button>
-                    </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="successfulMigrations">0</span>
+                    <div class="stat-label">Successfully Migrated</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="tablesUpdated">0</span>
+                    <div class="stat-label">Tables Mapped</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="functionsUpdated">0</span>
+                    <div class="stat-label">Functions Updated</div>
                 </div>
             </div>
-            
-            <div class="detailed-results" id="detailedResults">
-                <h4 style="margin-bottom: 1rem; color: #2c3e50;">📄 File Processing Details</h4>
-                <div class="file-details-table" id="fileDetailsTable"></div>
+
+            <div class="download-section">
+                <button class="download-button" id="downloadYaml">
+                    📥 Download Migrated YAML
+                </button>
+                <button class="download-button" id="downloadCsv">
+                    📊 Export Analytics CSV
+                </button>
             </div>
-            
-            <div class="notification" id="notification"></div>
+
+            <div class="details-section">
+                <button class="details-toggle" id="detailsToggle">
+                    🔍 View Migration Details
+                </button>
+                <div class="details-content" id="detailsContent">
+                    <div id="migrationDetails">Migration details will appear here...</div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2025 Algolia. Built with ❤️ for seamless data migration. 
+           <a href="https://algolia.com" target="_blank">Learn more about Algolia</a>
+        </p>
+    </footer>
+
     <script>
+        let uploadedFile = null;
+        let migrationResults = null;
+
+        // DOM Elements
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const uploadForm = document.getElementById('uploadForm');
-        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadButton = document.getElementById('uploadButton');
         const progressSection = document.getElementById('progressSection');
         const progressFill = document.getElementById('progressFill');
-        const fileInfo = document.getElementById('fileInfo');
-        const notification = document.getElementById('notification');
-        const processingStats = document.getElementById('processingStats');
-        const resultsActions = document.getElementById('resultsActions');
-        const detailedResults = document.getElementById('detailedResults');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        const viewDetailsBtn = document.getElementById('viewDetailsBtn');
-        
-        let currentSessionId = null;
-        
-        // Drag and drop handlers
+        const progressText = document.getElementById('progressText');
+        const resultsSection = document.getElementById('resultsSection');
+        const detailsToggle = document.getElementById('detailsToggle');
+        const detailsContent = document.getElementById('detailsContent');
+
+        // File Upload Handling
         uploadArea.addEventListener('click', () => fileInput.click());
         uploadArea.addEventListener('dragover', handleDragOver);
         uploadArea.addEventListener('dragleave', handleDragLeave);
         uploadArea.addEventListener('drop', handleDrop);
         fileInput.addEventListener('change', handleFileSelect);
-        
-        // Button handlers
-        downloadBtn.addEventListener('click', downloadFiles);
-        exportBtn.addEventListener('click', exportReport);
-        viewDetailsBtn.addEventListener('click', toggleDetails);
-        
+
         function handleDragOver(e) {
             e.preventDefault();
             uploadArea.classList.add('dragover');
         }
-        
+
         function handleDragLeave(e) {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
         }
-        
+
         function handleDrop(e) {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                fileInput.files = files;
-                updateFileInfo(files[0]);
+                processFile(files[0]);
             }
         }
-        
+
         function handleFileSelect(e) {
-            if (e.target.files.length > 0) {
-                updateFileInfo(e.target.files[0]);
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
             }
         }
-        
-        function updateFileInfo(file) {
-            const size = (file.size / 1024 / 1024).toFixed(2);
-            const fileType = file.name.endsWith('.zip') ? '📦 ZIP Archive' : '📄 YAML File';
-            fileInfo.innerHTML = `${fileType} <strong>${file.name}</strong> (${size} MB)`;
-            fileInfo.style.display = 'block';
-            hideNotification();
-            resetResults();
-        }
-        
-        function showNotification(message, type = 'info') {
-            notification.className = `notification ${type}`;
-            notification.innerHTML = message;
-            notification.style.display = 'block';
-            
-            // Auto-hide success notifications after 5 seconds
-            if (type === 'success') {
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 8000);
-            }
-        }
-        
-        function hideNotification() {
-            notification.style.display = 'none';
-        }
-        
-        function updateProgress(percent) {
-            progressFill.style.width = `${percent}%`;
-        }
-        
-        function showProgress() {
-            progressSection.style.display = 'block';
-            updateProgress(0);
-        }
-        
-        function hideProgress() {
-            progressSection.style.display = 'none';
-        }
-        
-        function updateStats(files = 0, cells = 0, functions = 0, tables = 0) {
-            document.getElementById('filesProcessed').textContent = files;
-            document.getElementById('cellsRewritten').textContent = cells;
-            document.getElementById('functionsConverted').textContent = functions;
-            document.getElementById('tablesRemapped').textContent = tables;
-        }
-        
-        function resetForm() {
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '🚀 Start Migration';
-            hideProgress();
-        }
-        
-        function resetResults() {
-            processingStats.style.display = 'none';
-            resultsActions.style.display = 'none';
-            detailedResults.style.display = 'none';
-            currentSessionId = null;
-        }
-        
-        function showResults(sessionId) {
-            currentSessionId = sessionId;
-            processingStats.style.display = 'block';
-            resultsActions.style.display = 'block';
-        }
-        
-        async function downloadFiles() {
-            if (!currentSessionId) return;
-            
-            try {
-                const response = await fetch(`/download/${currentSessionId}`);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'migrated_files';
-                    
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    showNotification('✅ <strong>Files downloaded successfully!</strong><br>Your migrated files are now available locally.', 'success');
-                } else {
-                    showNotification('❌ <strong>Download failed:</strong><br>Please try again or contact support.', 'error');
-                }
-            } catch (err) {
-                showNotification('❌ <strong>Download error:</strong><br>Please check your connection and try again.', 'error');
-            }
-        }
-        
-        async function exportReport() {
-            if (!currentSessionId) return;
-            
-            try {
-                const response = await fetch(`/export/${currentSessionId}`);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const filename = `migration_report_${currentSessionId.substring(0, 8)}.csv`;
-                    
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    showNotification(`✅ <strong>Report exported!</strong><br>
-                        📊 CSV file downloaded: ${filename}<br>
-                        💡 <strong>Import to Google Sheets:</strong> Open Google Sheets → File → Import → Upload → Select your CSV file`, 'success');
-                } else {
-                    showNotification('❌ Export failed. Please try again.', 'error');
-                }
-            } catch (err) {
-                showNotification('❌ Export error. Please check your connection.', 'error');
-            }
-        }
-        
-        async function toggleDetails() {
-            if (!currentSessionId) return;
-            
-            if (detailedResults.style.display === 'none' || !detailedResults.style.display) {
-                // Load and show details
-                try {
-                    const response = await fetch(`/results/${currentSessionId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        displayDetailedResults(data);
-                        detailedResults.style.display = 'block';
-                        viewDetailsBtn.innerHTML = '🔼 Hide Details';
-                    }
-                } catch (err) {
-                    showNotification('❌ Failed to load details.', 'error');
-                }
-            } else {
-                // Hide details
-                detailedResults.style.display = 'none';
-                viewDetailsBtn.innerHTML = '📋 View Details';
-            }
-        }
-        
-        function displayDetailedResults(data) {
-            const tableHtml = `
-                <div class="table-header">
-                    <div>Filename</div>
-                    <div>Type</div>
-                    <div>Cells Modified</div>
-                    <div>Size (MB)</div>
-                </div>
-                ${data.file_details.map(file => `
-                    <div class="table-row">
-                        <div>${file.filename}</div>
-                        <div>${file.type}</div>
-                        <div>${file.cells_rewritten}</div>
-                        <div>${file.size_mb}</div>
-                    </div>
-                `).join('')}
-            `;
-            
-            document.getElementById('fileDetailsTable').innerHTML = tableHtml;
-            
-            // Add Google Sheets info if not already present
-            if (!document.querySelector('.google-sheets-info')) {
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'google-sheets-info';
-                infoDiv.innerHTML = `
-                    <strong>📊 Want this data in Google Sheets?</strong>
-                    Click "Export Report (CSV)" above, then import the CSV file to Google Sheets for analysis and sharing!
-                `;
-                detailedResults.appendChild(infoDiv);
-            }
-        }
-        
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (!fileInput.files.length) {
-                showNotification('⚠️ Please select a file to upload', 'warning');
+
+        function processFile(file) {
+            if (!file.name.match(/\.(yaml|yml)$/i)) {
+                alert('Please select a YAML file (.yaml or .yml)');
                 return;
             }
+
+            uploadedFile = file;
+            uploadButton.disabled = false;
             
-            hideNotification();
-            resetResults();
-            showProgress();
-            uploadBtn.disabled = true;
-            uploadBtn.innerHTML = '⏳ Processing...';
+            const fileName = file.name.length > 30 ? file.name.substring(0, 27) + '...' : file.name;
+            uploadArea.innerHTML = `
+                <span class="upload-icon">✅</span>
+                <div class="upload-text">File Ready: ${fileName}</div>
+                <div class="upload-hint">${(file.size / 1024).toFixed(1)} KB • Click to change file</div>
+            `;
+        }
+
+        // Migration Process
+        uploadButton.addEventListener('click', startMigration);
+
+        async function startMigration() {
+            if (!uploadedFile) return;
+
+            // Show progress
+            progressSection.style.display = 'block';
+            uploadButton.disabled = true;
             
-            // Simulate progress for better UX
+            // Animate progress
             let progress = 0;
             const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress < 90) {
-                    updateProgress(progress);
-                } else {
-                    clearInterval(progressInterval);
-                }
-            }, 200);
-            
-            const formData = new FormData(uploadForm);
-            
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+                
+                const stages = [
+                    'Analyzing YAML structure...',
+                    'Mapping database schemas...',
+                    'Converting SQL functions...',
+                    'Updating connection references...',
+                    'Finalizing migration...'
+                ];
+                progressText.textContent = stages[Math.floor(progress / 20)] || stages[4];
+            }, 500);
+
             try {
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+                formData.append('databricks_conn_id', document.getElementById('databricks_conn_id').value);
+
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
-                clearInterval(progressInterval);
-                updateProgress(100);
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        // Update stats with real data
-                        updateStats(
-                            result.summary.files_processed,
-                            result.summary.cells_rewritten,
-                            result.summary.functions_converted,
-                            result.summary.tables_remapped
-                        );
-                        
-                        showResults(result.session_id);
-                        
-                        showNotification(`✅ <strong>Migration completed successfully!</strong><br>
-                            � ${result.summary.files_processed} file(s) processed<br>
-                            🔄 ${result.summary.cells_rewritten} SQL cells transformed<br>
-                            ⚡ Ready for download - results saved until you download`, 'success');
-                    } else {
-                        showNotification('❌ Migration failed. Please try again.', 'error');
-                    }
-                } else {
-                    const error = await response.json();
-                    showNotification(`❌ <strong>Migration failed:</strong><br>${error.error}`, 'error');
+
+                if (!response.ok) {
+                    throw new Error('Migration failed');
                 }
-            } catch (err) {
+
+                const result = await response.json();
+                
                 clearInterval(progressInterval);
-                showNotification(`❌ <strong>Network error:</strong><br>Please check your connection and try again.`, 'error');
-                console.error('Upload error:', err);
-            } finally {
-                setTimeout(resetForm, 1000);
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Migration completed successfully!';
+
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                    showResults(result);
+                }, 1000);
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                alert('Migration failed: ' + error.message);
+                uploadButton.disabled = false;
+                progressSection.style.display = 'none';
             }
+        }
+
+        function showResults(results) {
+            migrationResults = results;
+            
+            // Update statistics
+            document.getElementById('totalQueriesProcessed').textContent = results.total_queries || 0;
+            document.getElementById('successfulMigrations').textContent = results.successful_migrations || 0;
+            document.getElementById('tablesUpdated').textContent = results.tables_updated || 0;
+            document.getElementById('functionsUpdated').textContent = results.functions_updated || 0;
+
+            // Update details
+            document.getElementById('migrationDetails').innerHTML = `
+                <h4 style="margin-bottom: 1rem; color: var(--algolia-dark);">Migration Summary</h4>
+                <p><strong>Original File:</strong> ${uploadedFile.name}</p>
+                <p><strong>Processing Time:</strong> ${results.processing_time || 'N/A'}</p>
+                <p><strong>Schema Mappings Applied:</strong> ${results.schema_mappings || 0}</p>
+                <p><strong>Function Transformations:</strong> ${results.function_transformations || 0}</p>
+                ${results.warnings ? `<p><strong>Warnings:</strong> ${results.warnings}</p>` : ''}
+            `;
+
+            resultsSection.style.display = 'block';
+            
+            // Setup download handlers
+            setupDownloadHandlers();
+        }
+
+        function setupDownloadHandlers() {
+            document.getElementById('downloadYaml').onclick = () => {
+                if (migrationResults && migrationResults.download_url) {
+                    window.location.href = migrationResults.download_url;
+                }
+            };
+
+            document.getElementById('downloadCsv').onclick = () => {
+                if (migrationResults && migrationResults.csv_url) {
+                    window.location.href = migrationResults.csv_url;
+                }
+            };
+        }
+
+        // Details Toggle
+        detailsToggle.addEventListener('click', () => {
+            const isOpen = detailsContent.classList.contains('open');
+            detailsContent.classList.toggle('open');
+            detailsToggle.textContent = isOpen ? '🔍 View Migration Details' : '🔼 Hide Migration Details';
         });
     </script>
 </body>
