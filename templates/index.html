@@ -477,15 +477,11 @@
     <header class="header">
         <div class="header-content">
             <div class="algolia-logo">
-                <svg viewBox="0 0 500 500.34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M250 0C386.6 0 500 113.4 500 250S386.6 500 250 500 0 386.6 0 250 113.4 0 250 0Z" fill="#003DFF"/>
-                    <path d="M156.7 357.4c31.8 31.8 74.1 49.3 118.8 49.3s87-17.5 118.8-49.3c31.8-31.8 49.3-74.1 49.3-118.8H156.7v118.8Z" fill="#FFF"/>
-                    <path d="M299.8 238.6c0-27.6-22.4-50-50-50s-50 22.4-50 50h100Z" fill="#003DFF"/>
-                </svg>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Algolia_logo_full_blue.svg" alt="Algolia" style="height: 28px;">
             </div>
             <div>
                 <h1 class="header-title">Migration Tool</h1>
-                <p class="header-subtitle">Powered by Algolia</p>
+                <p class="header-subtitle">Made by Soundharya Prakasam</p>
             </div>
         </div>
     </header>
@@ -495,7 +491,7 @@
         <div class="hero-section">
             <h1 class="hero-title">Hex → Databricks Migration</h1>
             <p class="hero-description">
-                Transform your Hex queries for seamless Databricks compatibility with intelligent AI-powered migration.
+                Transform your Hex queries for seamless Databricks compatibility with intelligent schema mapping.
             </p>
         </div>
 
@@ -640,7 +636,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-        <p>© 2025 Algolia. Built with ❤️ for seamless data migration. 
+        <p>© 2025 Algolia. Made by <strong>Soundharya Prakasam</strong> for seamless data migration. 
            <a href="https://algolia.com" target="_blank">Learn more about Algolia</a>
         </p>
     </footer>
@@ -805,28 +801,8 @@
             const notificationArea = document.getElementById('notificationArea');
             notificationArea.innerHTML = '';
 
-            // Success notification
-            addNotification('success', '🎉 Migration completed successfully!', notificationArea);
-            
-            // Info notifications
-            if (summary.tables_remapped > 0) {
-                addNotification('info', `📊 ${summary.tables_remapped} table references updated to Databricks format`, notificationArea);
-            }
-            
-            if (summary.functions_converted > 0) {
-                addNotification('info', `🔧 ${summary.functions_converted} functions converted for Databricks compatibility`, notificationArea);
-            }
-
-            if (summary.cells_rewritten > 0) {
-                addNotification('info', `📝 ${summary.cells_rewritten} cells rewritten for Databricks`, notificationArea);
-            }
-
-            // Connection update notification
-            addNotification('info', '🔗 Connection IDs automatically updated for Databricks', notificationArea);
-            
-            if (summary.warnings) {
-                addNotification('warning', `⚠️ Note: ${summary.warnings}`, notificationArea);
-            }
+            // Remove all notifications as requested
+            // Just show the completion status in the processing summary section
         }
 
         function addNotification(type, message, container) {
