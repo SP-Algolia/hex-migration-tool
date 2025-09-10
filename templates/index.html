@@ -56,20 +56,27 @@
             padding: 0 2rem;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
         }
 
         .algolia-logo {
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
-        .algolia-logo svg {
-            width: 28px;
-            height: 28px;
+        .algolia-logo img {
+            width: 36px;
+            height: auto;
+        }
+
+        .header-text {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
         }
 
         .header-title {
@@ -248,7 +255,7 @@
 
         .stat-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 1.5rem;
             margin: 2rem 0;
         }
@@ -445,6 +452,35 @@
             .header-content {
                 padding: 0 1rem;
             }
+            
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            
+            .download-section {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .algolia-logo {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .algolia-logo img {
+                width: 28px;
+            }
+            
+            .header-title {
+                font-size: 1.25rem;
+            }
         }
 
         /* Animation */
@@ -477,9 +513,9 @@
     <header class="header">
         <div class="header-content">
             <div class="algolia-logo">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Algolia_logo_full_blue.svg" alt="Algolia" style="height: 28px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Algolia_logo_full_blue.svg" alt="Algolia">
             </div>
-            <div>
+            <div class="header-text">
                 <h1 class="header-title">Migration Tool</h1>
                 <p class="header-subtitle">Made by Soundharya Prakasam</p>
             </div>
