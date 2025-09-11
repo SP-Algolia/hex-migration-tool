@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hex to Databricks Migration Tool | Algolia</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             /* Algolia Brand Colors */
@@ -53,15 +54,13 @@
         .header-content {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 1.5rem 2rem;
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 2rem;
         }
 
         .algolia-logo {
-            width: 40px;
-            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -69,65 +68,72 @@
         }
 
         .algolia-logo img {
-            width: 36px;
+            width: 120px;
             height: auto;
         }
 
         .header-text {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.5rem;
+            flex: 1;
         }
 
         .header-title {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 600;
-            color: var(--algolia-dark);
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin: 0;
+            line-height: 1.2;
         }
 
         .header-subtitle {
             color: var(--algolia-gray);
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             font-weight: 400;
+            line-height: 1.4;
+            max-width: 600px;
         }
 
         .container {
             max-width: 900px;
             margin: 0 auto;
-            padding: 3rem 2rem;
+            padding: 2rem 2rem;
         }
 
         .hero-section {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         .hero-title {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 700;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             line-height: 1.2;
         }
 
         .hero-description {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: var(--algolia-gray);
             max-width: 600px;
-            margin: 0 auto 2rem;
+            margin: 0 auto 1.5rem;
         }
 
         .migration-card {
             background: var(--algolia-white);
             border-radius: var(--border-radius);
-            padding: 2.5rem;
+            padding: 2rem;
             box-shadow: var(--shadow);
             transition: all 0.3s ease;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         .migration-card:hover {
@@ -142,13 +148,43 @@
             margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
+        }
+
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-gradient);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .custom-icon {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.2rem;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .upload-area {
             border: 2px dashed rgba(0, 61, 255, 0.3);
             border-radius: var(--border-radius);
-            padding: 3rem 2rem;
+            padding: 2.5rem 2rem;
             text-align: center;
             background: linear-gradient(135deg, rgba(0, 61, 255, 0.02), rgba(139, 92, 246, 0.02));
             transition: all 0.3s ease;
@@ -181,6 +217,63 @@
         .upload-hint {
             color: var(--algolia-gray);
             font-size: 0.95rem;
+        }
+
+        .guide-section {
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.03), rgba(139, 92, 246, 0.03));
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(0, 61, 255, 0.1);
+        }
+
+        .guide-content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .guide-steps {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .guide-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--algolia-white);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 61, 255, 0.1);
+        }
+
+        .step-number {
+            background: var(--primary-gradient);
+            color: var(--algolia-white);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            color: var(--algolia-dark);
+            font-weight: 600;
+            margin: 0 0 0.25rem 0;
+            font-size: 0.95rem;
+        }
+
+        .step-content p {
+            color: var(--algolia-gray);
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.4;
         }
         
         .connection-section {
@@ -256,13 +349,13 @@
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-            margin: 2rem 0;
+            gap: 1.25rem;
+            margin: 1.5rem 0;
         }
 
         .stat-card {
             background: linear-gradient(135deg, rgba(0, 61, 255, 0.05), rgba(139, 92, 246, 0.05));
-            padding: 1.5rem;
+            padding: 1.25rem;
             border-radius: 10px;
             text-align: center;
             border: 1px solid rgba(0, 61, 255, 0.1);
@@ -304,7 +397,16 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
+        }
+
+        .download-button .custom-icon {
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
+            background-clip: unset;
+            color: var(--algolia-white);
+            font-size: 1rem;
         }
 
         .download-button:hover {
@@ -470,16 +572,28 @@
             }
             
             .algolia-logo {
-                width: 32px;
-                height: 32px;
+                width: 48px;
+                height: 48px;
             }
             
             .algolia-logo img {
-                width: 28px;
+                width: 42px;
             }
             
             .header-title {
-                font-size: 1.25rem;
+                font-size: 1.4rem;
+            }
+            
+            .header-subtitle {
+                font-size: 0.9rem;
+            }
+            
+            .guide-steps {
+                gap: 1rem;
+            }
+            
+            .guide-step {
+                padding: 0.75rem;
             }
         }
 
@@ -510,30 +624,66 @@
 </head>
 <body>
     <!-- Header -->
+    <!-- Cache bust: v1.1 -->
     <header class="header">
         <div class="header-content">
             <div class="algolia-logo">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Algolia_logo_full_blue.svg" alt="Algolia">
             </div>
             <div class="header-text">
-                <h1 class="header-title">Migration Tool</h1>
-                <p class="header-subtitle">Made by Soundharya Prakasam</p>
+                <h1 class="header-title">Hex Migration Tool</h1>
+                <p class="header-subtitle">Transform your Hex queries for seamless Databricks compatibility with intelligent schema mapping.</p>
             </div>
         </div>
     </header>
 
     <div class="container">
-        <!-- Hero Section -->
-        <div class="hero-section">
-            <h1 class="hero-title">Hex → Databricks Migration</h1>
-            <p class="hero-description">
-                Transform your Hex queries for seamless Databricks compatibility with intelligent schema mapping.
-            </p>
+        <!-- How to Use Guide -->
+        <div class="guide-section">
+            <div class="guide-content">
+                <h3 class="section-title">
+                    <div class="section-icon"><i class="fas fa-book-open"></i></div>
+                    How to Use This Tool
+                </h3>
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Export from Hex</h4>
+                            <p>In your Hex project, go to <strong>Project Settings</strong> → <strong>Export</strong> → <strong>Download as YAML</strong>. This downloads your project configuration with all queries and cells.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Upload YAML File</h4>
+                            <p>Drag and drop your exported .yaml file to the upload area below, or click to browse and select it from your computer.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Automatic Migration</h4>
+                            <p>The tool automatically converts Redshift functions to Databricks equivalents, updates table references, and optimizes queries for better performance.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Download & Import</h4>
+                            <p>Download the migrated YAML file and import it into your Databricks-connected Hex environment. Your queries are now ready for Databricks!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Platform Metrics -->
         <div class="migration-card">
-            <h3 class="section-title">📊 Platform Statistics</h3>
+            <h3 class="section-title">
+                <div class="section-icon"><i class="fas fa-chart-bar"></i></div>
+                Platform Statistics
+            </h3>
             <div class="stat-grid">
                 <div class="stat-card">
                     <span class="stat-number">4,216</span>
@@ -556,10 +706,13 @@
 
         <!-- Upload Section -->
         <div class="migration-card">
-            <h3 class="section-title">📁 Upload YAML File</h3>
+            <h3 class="section-title">
+                <div class="section-icon"><i class="fas fa-upload"></i></div>
+                Upload YAML File
+            </h3>
             
             <div class="upload-area" id="uploadArea">
-                <span class="upload-icon">☁️</span>
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
                 <div class="upload-text">Drop your YAML file here or click to browse</div>
                 <div class="upload-hint">Supports .yaml and .yml files up to 10MB</div>
             </div>
@@ -567,7 +720,10 @@
             <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml" />
             
             <div class="connection-section">
-                <h3 class="section-title">⚙️ Configuration</h3>
+                <h3 class="section-title">
+                    <div class="section-icon"><i class="fas fa-cog"></i></div>
+                    Configuration
+                </h3>
                 <p style="color: var(--algolia-gray); margin-bottom: 1rem;">
                     Using default Databricks connection. The tool will automatically update connection IDs during migration.
                 </p>
@@ -586,7 +742,10 @@
 
         <!-- Progress Section -->
         <div class="progress-section" id="progressSection">
-            <h3 class="section-title">⚡ Processing</h3>
+            <h3 class="section-title">
+                <div class="section-icon"><i class="fas fa-sync-alt"></i></div>
+                Processing
+            </h3>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -595,7 +754,10 @@
 
         <!-- Results Section -->
         <div class="results-section" id="resultsSection">
-            <h3 class="section-title">✅ Migration Complete</h3>
+            <h3 class="section-title">
+                <div class="section-icon"><i class="fas fa-check-circle"></i></div>
+                Migration Complete
+            </h3>
             
             <div class="stat-grid">
                 <div class="stat-card">
@@ -618,7 +780,9 @@
 
             <!-- Processing Summary -->
             <div style="margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, rgba(0, 201, 167, 0.05), rgba(0, 61, 255, 0.05)); border-radius: var(--border-radius); border: 1px solid rgba(0, 201, 167, 0.2);">
-                <h4 style="color: var(--algolia-dark); margin-bottom: 1rem;">🎯 Processing Summary</h4>
+                <h4 style="color: var(--algolia-dark); margin-bottom: 1rem;">
+                    <i class="fas fa-bullseye custom-icon"></i> Processing Summary
+                </h4>
                 <div id="processingSummary">
                     <p><strong>Migration Status:</strong> <span id="migrationStatus">Ready to process</span></p>
                     <p><strong>Processing Time:</strong> <span id="processingTime">-</span></p>
@@ -631,10 +795,10 @@
 
             <div class="download-section">
                 <button class="download-button" id="downloadYaml">
-                    📥 Download Migrated YAML
+                    <i class="fas fa-download custom-icon"></i> Download Migrated YAML
                 </button>
                 <button class="download-button" id="downloadCsv">
-                    📊 Export Analytics CSV
+                    <i class="fas fa-file-csv custom-icon"></i> Export Analytics CSV
                 </button>
             </div>
 
@@ -664,7 +828,7 @@
 
             <!-- Google Sheets Integration Info -->
             <div style="background: var(--secondary-gradient); color: var(--algolia-white); padding: 1rem; border-radius: var(--border-radius); margin-top: 2rem; text-align: center;">
-                <strong>📊 Analytics Integration</strong>
+                <strong><i class="fas fa-chart-line custom-icon"></i> Analytics Integration</strong>
                 <p style="margin: 0.5rem 0 0 0;">CSV exports are compatible with Google Sheets, Excel, and other data analysis tools for migration reporting.</p>
             </div>
         </div>
@@ -736,7 +900,7 @@
             
             const fileName = file.name.length > 30 ? file.name.substring(0, 27) + '...' : file.name;
             uploadArea.innerHTML = `
-                <span class="upload-icon">✅</span>
+                <i class="fas fa-check-circle upload-icon" style="color: var(--algolia-teal);"></i>
                 <div class="upload-text">File Ready: ${fileName}</div>
                 <div class="upload-hint">${(file.size / 1024).toFixed(1)} KB • Click to change file</div>
             `;
@@ -815,7 +979,8 @@
             document.getElementById('tablesRemapped').textContent = summary.tables_remapped || 0;
 
             // Update processing summary
-            document.getElementById('migrationStatus').textContent = 'Successfully Completed ✅';
+            document.getElementById('migrationStatus').textContent = 'Successfully Completed';
+            document.getElementById('migrationStatus').innerHTML = '<i class="fas fa-check-circle" style="color: var(--algolia-teal);"></i> Successfully Completed';
             document.getElementById('processingTime').textContent = results.processing_time || 'Under 1 minute';
             const successRate = summary.successful_migrations && summary.total_queries ? 
                 Math.round((summary.successful_migrations / summary.total_queries) * 100) + '%' : '100%';
@@ -860,7 +1025,9 @@
                     </div>
                     <div class="table-row">
                         <div>${uploadedFile.name}</div>
-                        <div style="color: var(--algolia-teal); font-weight: 600;">✅ Migrated</div>
+                        <div style="color: var(--algolia-teal); font-weight: 600;">
+                            <i class="fas fa-check-circle"></i> Migrated
+                        </div>
                         <div>${summary.cells_rewritten || 'N/A'}</div>
                         <div>${(summary.tables_remapped || 0) + (summary.functions_converted || 0)} changes</div>
                     </div>
