@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify, session
+from flask import Flask, render_template, request, send_file, jsonify, session, redirect, url_for
 import os
 import yaml
 import zipfile
@@ -8,6 +8,10 @@ import sys
 import uuid
 from datetime import datetime
 import json
+import re
+from functools import wraps
+import requests
+from urllib.parse import urlencode
 
 # Import your migration functions
 from hex_migrate_redshift_to_databricks import transform_hex_yaml, load_yaml
@@ -15,17 +19,118 @@ from hex_migrate_redshift_to_databricks import transform_hex_yaml, load_yaml
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'hex-migration-secret-key-2025')
 
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = "671692633628-6sojfoe3q6o7jkfjpl156o2ffod8qmll.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')  # You'll need to set this
+REDIRECT_URI = os.environ.get('REDIRECT_URI', 'https://hex-migration-tool-theta.vercel.app/auth/callback')
+
 # Store processing results in memory (in production, use Redis or database)
 processing_results = {}
 
 # For Vercel compatibility
 application = app
 
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_email' not in session:
+            return redirect(url_for('login'))
+        
+        # Check if user email is from Algolia domain
+        if not session['user_email'].endswith('@algolia.com'):
+            session.clear()
+            return redirect(url_for('login', error='domain'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if 'user_email' not in session:
+        return redirect(url_for('login'))
+    return redirect(url_for('main'))
+
+@app.route('/login')
+def login():
+    error = request.args.get('error')
+    if error == 'domain':
+        error_msg = "Access restricted to @algolia.com email addresses only."
+    else:
+        error_msg = None
+    
+    # Google OAuth URL
+    google_auth_url = "https://accounts.google.com/o/oauth2/auth?" + urlencode({
+        'client_id': GOOGLE_CLIENT_ID,
+        'redirect_uri': REDIRECT_URI,
+        'scope': 'openid email profile',
+        'response_type': 'code',
+        'hd': 'algolia.com'  # Restrict to algolia.com domain
+    })
+    
+    return render_template('login.html', google_auth_url=google_auth_url, error=error_msg)
+
+@app.route('/auth/callback')
+def auth_callback():
+    code = request.args.get('code')
+    if not code:
+        return redirect(url_for('login'))
+    
+    # Exchange code for token
+    token_url = "https://oauth2.googleapis.com/token"
+    token_data = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': REDIRECT_URI
+    }
+    
+    try:
+        import requests
+        token_response = requests.post(token_url, data=token_data)
+        token_response.raise_for_status()
+        token_json = token_response.json()
+        
+        # Get user info
+        access_token = token_json['access_token']
+        user_info_response = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+        user_info_response.raise_for_status()
+        user_info = user_info_response.json()
+        
+        # Verify domain
+        email = user_info.get('email', '')
+        if not email.endswith('@algolia.com'):
+            return redirect(url_for('login', error='domain'))
+        
+        # Store user info in session
+        session['user_email'] = email
+        session['user_name'] = user_info.get('name', '')
+        session['user_picture'] = user_info.get('picture', '')
+        
+        return redirect(url_for('main'))
+        
+    except Exception as e:
+        print(f"OAuth error: {e}")
+        return redirect(url_for('login'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+@app.route('/main')
+@require_auth
+def main():
+    return render_template('index.html', 
+                         user_email=session['user_email'],
+                         user_name=session.get('user_name', ''),
+                         user_picture=session.get('user_picture', ''))
 
 @app.route('/upload', methods=['POST'])
+@require_auth
 def upload_file():
     try:
         if 'file' not in request.files:

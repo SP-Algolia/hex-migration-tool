@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hex to Databricks Migration Tool | Algolia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Algolia Brand Colors */
+            --algolia-blue: #003dff;
+            --algolia-purple: #8b5cf6;
+            --algolia-teal: #00c9a7;
+            --algolia-dark: #21243d;
+            --algolia-gray: #54575a;
+            --algolia-light-gray: #f5f5f5;
+            --algolia-white: #ffffff;
+            --algolia-black: #000000;
+            
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, var(--algolia-blue), var(--algolia-purple));
+            --secondary-gradient: linear-gradient(135deg, var(--algolia-teal), var(--algolia-blue));
+            --background-gradient: linear-gradient(135deg, #fafafa 0%, #f0f2ff 100%);
+            
+            /* Typography */
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --border-radius: 12px;
+            --shadow: 0 4px 20px rgba(0, 61, 255, 0.1);
+            --shadow-hover: 0 8px 40px rgba(0, 61, 255, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--background-gradient);
+            color: var(--algolia-dark);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--algolia-white);
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(0, 61, 255, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 61, 255, 0.05);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .algolia-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--algolia-dark);
+            margin: 0;
+        }
+
+        .header-subtitle {
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .hero-description {
+            font-size: 1.2rem;
+            color: var(--algolia-gray);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .migration-card {
+            background: var(--algolia-white);
+            border-radius: var(--border-radius);
+            padding: 2.5rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .migration-card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--algolia-dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(0, 61, 255, 0.3);
+            border-radius: var(--border-radius);
+            padding: 3rem 2rem;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.02), rgba(139, 92, 246, 0.02));
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: var(--algolia-blue);
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.05), rgba(139, 92, 246, 0.05));
+        }
+
+        .upload-area.dragover {
+            border-color: var(--algolia-blue);
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.08), rgba(139, 92, 246, 0.08));
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--algolia-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            color: var(--algolia-gray);
+            font-size: 0.95rem;
+        }
+        
+        .connection-section {
+            background: linear-gradient(135deg, rgba(0, 201, 167, 0.05), rgba(0, 61, 255, 0.05));
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(0, 201, 167, 0.2);
+        }
+
+        .action-button {
+            background: var(--primary-gradient);
+            color: var(--algolia-white);
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1.5rem;
+            font-family: var(--font-family);
+        }
+
+        .action-button:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-1px);
+        }
+
+        .action-button:disabled {
+            background: var(--algolia-light-gray);
+            color: var(--algolia-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-section {
+            background: var(--algolia-white);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .progress-bar {
+            background: var(--algolia-light-gray);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            background: var(--secondary-gradient);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .results-section {
+            background: var(--algolia-white);
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 61, 255, 0.05), rgba(139, 92, 246, 0.05));
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(0, 61, 255, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--algolia-blue);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        .download-section {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .download-button {
+            flex: 1;
+            min-width: 200px;
+            background: var(--secondary-gradient);
+            color: var(--algolia-white);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .download-button:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .details-section {
+            margin-top: 2rem;
+        }
+
+        .details-toggle {
+            background: none;
+            border: none;
+            color: var(--algolia-blue);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .details-content {
+            background: var(--algolia-light-gray);
+            padding: 1.5rem;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .details-content.open {
+            display: block;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--algolia-gray);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--algolia-blue);
+            text-decoration: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 2rem 1rem;
+            }
+            
+            .migration-card {
+                padding: 1.5rem;
+            }
+            
+            .header-content {
+                padding: 0 1rem;
+            }
+        }
+
+        /* Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .processing {
+            animation: pulse 2s infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--algolia-light-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--algolia-blue);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="algolia-logo">A</div>
+            <div>
+                <h1 class="header-title">Migration Tool</h1>
+                <p class="header-subtitle">Powered by Algolia</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1 class="hero-title">Hex → Databricks Migration</h1>
+            <p class="hero-description">
+                Transform your Hex queries for seamless Databricks compatibility with intelligent AI-powered migration.
+            </p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="migration-card">
+            <h3 class="section-title">📁 Upload YAML File</h3>
+            
+            <div class="upload-area" id="uploadArea">
+                <span class="upload-icon">☁️</span>
+                <div class="upload-text">Drop your YAML file here or click to browse</div>
+                <div class="upload-hint">Supports .yaml and .yml files up to 10MB</div>
+            </div>
+            
+            <input type="file" id="fileInput" class="file-input" accept=".yaml,.yml" />
+            
+            <div class="connection-section">
+                <h3 class="section-title">⚙️ Configuration</h3>
+                <p style="color: var(--algolia-gray); margin-bottom: 1rem;">
+                    Using default Databricks connection. The tool will automatically update connection IDs during migration.
+                </p>
+                <input 
+                    type="hidden" 
+                    id="databricks_conn_id" 
+                    name="databricks_conn_id" 
+                    value="0196d84e-3399-7000-ba4e-6c93736d59a8"
+                >
+            </div>
+
+            <button class="action-button" id="uploadButton" disabled>
+                Start Migration
+            </button>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <h3 class="section-title">⚡ Processing</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="progressText">Preparing migration...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <h3 class="section-title">✅ Migration Complete</h3>
+            
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalQueriesProcessed">0</span>
+                    <div class="stat-label">Total Queries</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="successfulMigrations">0</span>
+                    <div class="stat-label">Successfully Migrated</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="tablesUpdated">0</span>
+                    <div class="stat-label">Tables Mapped</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="functionsUpdated">0</span>
+                    <div class="stat-label">Functions Updated</div>
+                </div>
+            </div>
+
+            <div class="download-section">
+                <button class="download-button" id="downloadYaml">
+                    📥 Download Migrated YAML
+                </button>
+                <button class="download-button" id="downloadCsv">
+                    📊 Export Analytics CSV
+                </button>
+            </div>
+
+            <div class="details-section">
+                <button class="details-toggle" id="detailsToggle">
+                    🔍 View Migration Details
+                </button>
+                <div class="details-content" id="detailsContent">
+                    <div id="migrationDetails">Migration details will appear here...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2025 Algolia. Built with ❤️ for seamless data migration. 
+           <a href="https://algolia.com" target="_blank">Learn more about Algolia</a>
+        </p>
+    </footer>
+
+    <script>
+        let uploadedFile = null;
+        let migrationResults = null;
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultsSection = document.getElementById('resultsSection');
+        const detailsToggle = document.getElementById('detailsToggle');
+        const detailsContent = document.getElementById('detailsContent');
+
+        // File Upload Handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.name.match(/\.(yaml|yml)$/i)) {
+                alert('Please select a YAML file (.yaml or .yml)');
+                return;
+            }
+
+            uploadedFile = file;
+            uploadButton.disabled = false;
+            
+            const fileName = file.name.length > 30 ? file.name.substring(0, 27) + '...' : file.name;
+            uploadArea.innerHTML = `
+                <span class="upload-icon">✅</span>
+                <div class="upload-text">File Ready: ${fileName}</div>
+                <div class="upload-hint">${(file.size / 1024).toFixed(1)} KB • Click to change file</div>
+            `;
+        }
+
+        // Migration Process
+        uploadButton.addEventListener('click', startMigration);
+
+        async function startMigration() {
+            if (!uploadedFile) return;
+
+            // Show progress
+            progressSection.style.display = 'block';
+            uploadButton.disabled = true;
+            
+            // Animate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+                
+                const stages = [
+                    'Analyzing YAML structure...',
+                    'Mapping database schemas...',
+                    'Converting SQL functions...',
+                    'Updating connection references...',
+                    'Finalizing migration...'
+                ];
+                progressText.textContent = stages[Math.floor(progress / 20)] || stages[4];
+            }, 500);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+                formData.append('databricks_conn_id', document.getElementById('databricks_conn_id').value);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Migration failed');
+                }
+
+                const result = await response.json();
+                
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Migration completed successfully!';
+
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                    showResults(result);
+                }, 1000);
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                alert('Migration failed: ' + error.message);
+                uploadButton.disabled = false;
+                progressSection.style.display = 'none';
+            }
+        }
+
+        function showResults(results) {
+            migrationResults = results;
+            
+            // Update statistics
+            document.getElementById('totalQueriesProcessed').textContent = results.total_queries || 0;
+            document.getElementById('successfulMigrations').textContent = results.successful_migrations || 0;
+            document.getElementById('tablesUpdated').textContent = results.tables_updated || 0;
+            document.getElementById('functionsUpdated').textContent = results.functions_updated || 0;
+
+            // Update details
+            document.getElementById('migrationDetails').innerHTML = `
+                <h4 style="margin-bottom: 1rem; color: var(--algolia-dark);">Migration Summary</h4>
+                <p><strong>Original File:</strong> ${uploadedFile.name}</p>
+                <p><strong>Processing Time:</strong> ${results.processing_time || 'N/A'}</p>
+                <p><strong>Schema Mappings Applied:</strong> ${results.schema_mappings || 0}</p>
+                <p><strong>Function Transformations:</strong> ${results.function_transformations || 0}</p>
+                ${results.warnings ? `<p><strong>Warnings:</strong> ${results.warnings}</p>` : ''}
+            `;
+
+            resultsSection.style.display = 'block';
+            
+            // Setup download handlers
+            setupDownloadHandlers();
+        }
+
+        function setupDownloadHandlers() {
+            document.getElementById('downloadYaml').onclick = () => {
+                if (migrationResults && migrationResults.download_url) {
+                    window.location.href = migrationResults.download_url;
+                }
+            };
+
+            document.getElementById('downloadCsv').onclick = () => {
+                if (migrationResults && migrationResults.csv_url) {
+                    window.location.href = migrationResults.csv_url;
+                }
+            };
+        }
+
+        // Details Toggle
+        detailsToggle.addEventListener('click', () => {
+            const isOpen = detailsContent.classList.contains('open');
+            detailsContent.classList.toggle('open');
+            detailsToggle.textContent = isOpen ? '🔍 View Migration Details' : '🔼 Hide Migration Details';
+        });
+    </script>
+</body>
+</html>
