@@ -19,6 +19,12 @@ from hex_migrate_redshift_to_databricks import transform_hex_yaml, load_yaml
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'hex-migration-secret-key-2025')
 
+# Session Configuration
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours (in seconds)
+app.config['SESSION_COOKIE_SECURE'] = True        # HTTPS only
+app.config['SESSION_COOKIE_HTTPONLY'] = True      # No JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'     # CSRF protection
+
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = "671692633628-6sojfoe3q6o7jkfjpl156o2ffod8qmll.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')  # You'll need to set this
@@ -109,6 +115,7 @@ def auth_callback():
         session['user_email'] = email
         session['user_name'] = user_info.get('name', '')
         session['user_picture'] = user_info.get('picture', '')
+        session.permanent = True  # Make session persistent for 24 hours
         
         return redirect(url_for('main'))
         
